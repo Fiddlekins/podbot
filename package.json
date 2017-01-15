@@ -1,0 +1,25 @@
+{
+  "name": "podbot",
+  "version": "1.0.0",
+  "description": "A discord bot for podcast recording",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Fiddlekins/podbot.git"
+  },
+  "author": "Fiddlekins",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Fiddlekins/podbot/issues"
+  },
+  "homepage": "https://github.com/Fiddlekins/podbot#readme",
+  "dependencies": {
+    "discord.js": "^11.0.0",
+    "erlpack": "github:hammerandchisel/erlpack",
+    "node-opus": "^0.2.4",
+    "uws": "^0.12.0"
+  }
+}
