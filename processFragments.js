@@ -143,6 +143,9 @@ let addFragmentPadFinished = (user) =>{
 
 	let command = `ffmpeg ${inputCommand}-filter_complex "${filterInputCommand}amerge=inputs=${inputCount}[aout]" -map "[aout]" -ac 2 -f s32le -acodec pcm_s32le ${outputPath}`;
 	exec(command, {}, (err, stdout, stderr) =>{
+		if (err) {
+			console.log(err);
+		}
 		cleanTemporaryFiles(user);
 	});
 };
@@ -175,7 +178,7 @@ let cleanTemporaryFilesFinished = (user) =>{
 
 // And then do the rest
 
-let inputDirectory = path.join('podcasts', '221324400400531457-1484496618527');
+let inputDirectory = path.join('podcasts', '177736817146068992-1484693143354');
 let podcastName = inputDirectory.split(path.sep);
 podcastName = podcastName[podcastName.length - 1];
 let podcastTimestamp = extractTimestamp(podcastName);
