@@ -72,7 +72,7 @@ let addDelay = (inputPath, outputPath, delay) =>{
 
 let addPad = (inputPath, outputPath, samples) =>{
 	return new Promise((resolve, reject) =>{
-		let command = `ffmpeg -f s32le -ar 24k -ac 2 -i ${inputPath} -af apad=whole_len=${samples} -f s32le -acodec pcm_s32le ${outputPath}`;
+		let command = `ffmpeg -f s32le -ar 24k -ac 2 -i ${inputPath} -y -af apad=whole_len=${samples} -f s32le -acodec pcm_s32le ${outputPath}`;
 		exec(command, {}, (err, stdout, stderr) =>{
 			if (err) {
 				reject(err);
@@ -119,6 +119,23 @@ let merge = (inputPathArray, outputPath) =>{
 	});
 };
 
+let concat = (inputPathArray, outputPath) =>{
+	return new Promise((resolve, reject) =>{
+		let inputCommand = '';
+		for (let inputPath of inputPathArray) {
+			inputCommand += `-f s32le -ar 24k -ac 2 -i ${inputPath} `;
+		}
+
+		let command = `ffmpeg ${inputCommand}-y -filter_complex "[0:0] [1:0] concat=n=2:v=0:a=1 [a0]" -map "[a0]" -ac 2 -f s32le -acodec pcm_s32le ${outputPath}`;
+		exec(command, {}, (err, stdout, stderr) =>{
+			if (err) {
+				reject(err);
+			}
+			resolve(stdout, stderr);
+		});
+	});
+};
+
 let addTemporaryFile = (userId, filePath) =>{
 	temporaryFiles[userId] = temporaryFiles[userId] || new Set();
 	temporaryFiles[userId].add(filePath);
@@ -143,13 +160,58 @@ let assembleUsers = () =>{
 		for (let userId in users) {
 			if (users.hasOwnProperty(userId)) {
 				let user = users[userId];
-				user.fragments.sort((a, b) =>{
-					return a.offset - b.offset;
-				});
-				addFragmentDelay(user);
+				user.fragmentCount = user.fragments.length;
+				delayFirstFragment(user);
 			}
 		}
 	});
+};
+
+let delayFirstFragment = (user) =>{
+	user.fragments.sort((a, b) =>{
+		return a.offset - b.offset;
+	});
+	let fragment = user.fragments[0];
+	let inputPath = path.join(inputDirectory, fragment.name);
+	user.flipFlop = 1;
+	let outputPath = path.join(inputDirectory, `${user.id}_${user.flipFlop}`);
+	let delay = fragment.offset;
+	addDelay(inputPath, outputPath, delay).then((stdout, stderr) =>{
+		user.fragments.shift();
+		padAndConcatenateFragments(user);
+	}).catch(console.error);
+};
+
+let padAndConcatenateFragments = (user) =>{
+	let nextFragment = user.fragments.shift();
+	if (nextFragment) {
+		let totalSamples = convertDurationToSamples(nextFragment.offset);
+		let inputPath = path.join(inputDirectory, `${user.id}_${user.flipFlop}`);
+		let outputPath = path.join(inputDirectory, `${user.id}_${1 - user.flipFlop}`);
+		addTemporaryFile(user.id, inputPath);
+		addTemporaryFile(user.id, outputPath);
+		user.flipFlop = 1 - user.flipFlop;
+		addPad(inputPath, outputPath, totalSamples).then((stdout, stderr) =>{
+			inputPath = path.join(inputDirectory, `${user.id}_${user.flipFlop}`);
+			outputPath = path.join(inputDirectory, `${user.id}_${1 - user.flipFlop}`);
+			user.flipFlop = 1 - user.flipFlop;
+			let inputPathArray = [inputPath, path.join(inputDirectory, nextFragment.name)];
+			concat(inputPathArray, outputPath).then((stderr, stdout) =>{
+				console.log(`User ${user.id} has completed ${100 * (user.fragmentCount - user.fragments.length) / user.fragmentCount}%`);
+				if (user.fragments.length) {
+					padAndConcatenateFragments(user);
+				} else {
+					fs.rename(outputPath, path.join(inputDirectory, user.id), (err) =>{
+						cleanTemporaryFiles(user);
+					});
+				}
+			}).catch(console.error);
+		}).catch(console.error);
+	} else {
+		fs.rename(path.join(inputDirectory, `${user.id}_${user.flipFlop}`), path.join(inputDirectory, user.id), (err) =>{
+			cleanTemporaryFiles(user);
+		});
+	}
 };
 
 let addFragmentDelay = (user) =>{
@@ -200,20 +262,25 @@ let addFragmentPadFinished = (user) =>{
 	});
 	let outputPath = path.join(inputDirectory, user.id);
 	merge(inputPathArray, outputPath).then((stdout, stderr) =>{
+		console.log(stdout);
 		cleanTemporaryFiles(user);
 	}).catch(console.error);
 };
 
 let cleanTemporaryFiles = (user) =>{
 	let files = temporaryFiles[user.id];
-	files.forEach((filePath) =>{
-		fs.unlink(filePath, (err) =>{
-			files.delete(filePath);
-			if (files.size <= 0) {
-				cleanTemporaryFilesFinished(user);
-			}
+	if (files) {
+		files.forEach((filePath) =>{
+			fs.unlink(filePath, (err) =>{
+				files.delete(filePath);
+				if (files.size <= 0) {
+					cleanTemporaryFilesFinished(user);
+				}
+			});
 		});
-	});
+	} else {
+		cleanTemporaryFilesFinished(user);
+	}
 };
 
 let cleanTemporaryFilesFinished = (user) =>{
@@ -222,7 +289,7 @@ let cleanTemporaryFilesFinished = (user) =>{
 
 // And then do the rest
 
-let inputDirectory = path.join('podcasts', '177736817146068992-1484616351048');
+let inputDirectory = path.join('podcasts', '177736817146068992-1484701956802');
 let podcastName = inputDirectory.split(path.sep);
 podcastName = podcastName[podcastName.length - 1];
 let podcastTimestamp = extractTimestamp(podcastName);
