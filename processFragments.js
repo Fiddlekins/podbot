@@ -289,7 +289,7 @@ let cleanTemporaryFilesFinished = (user) =>{
 
 // And then do the rest
 
-let inputDirectory = path.join('podcasts', '177736817146068992-1484701956802');
+let inputDirectory = path.join('podcasts', process.argv[2]);
 let podcastName = inputDirectory.split(path.sep);
 podcastName = podcastName[podcastName.length - 1];
 let podcastTimestamp = extractTimestamp(podcastName);
