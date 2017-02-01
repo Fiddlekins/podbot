@@ -8,7 +8,7 @@ const TOKEN = fs.readFileSync('./token', 'utf8').trim(); // Trim because linux
 const CONTROLLER_IDS = [];
 
 // Populate controller_ids
-fs.readFile('./controllers', 'utf8', (err, data) =>{
+fs.readFile('./controllers', 'utf8', (err, data) => {
 	if (!err) {
 		[].push.apply(CONTROLLER_IDS, data.split(/\s+/));
 	}
@@ -16,7 +16,7 @@ fs.readFile('./controllers', 'utf8', (err, data) =>{
 
 
 class Podbot {
-	constructor(token){
+	constructor(token) {
 		this.client = new Discord.Client();
 		this.commandCharacter = '/';
 		this.podcastsPath = Podbot._makePodcastsDirectory();
@@ -36,17 +36,17 @@ class Podbot {
 		this.client.login(token).catch(console.error);
 	}
 
-	_onReady(){
+	_onReady() {
 		console.log('Ready!');
 
-		CONTROLLER_IDS.forEach((id) =>{
-			this.client.fetchUser(id).then(user =>{
+		CONTROLLER_IDS.forEach((id) => {
+			this.client.fetchUser(id).then(user => {
 				this._controllerUsers.add(user);
 			}).catch(console.error);
 		});
 	}
 
-	_onMessage(message){
+	_onMessage(message) {
 		if (message.content.charAt(0) === this.commandCharacter) {
 			switch (message.content.slice(1)) {
 				case 'podon':
@@ -59,7 +59,7 @@ class Podbot {
 		}
 	}
 
-	_onGuildMemberSpeaking(member, speaking){
+	_onGuildMemberSpeaking(member, speaking) {
 		if (speaking && member.voiceChannel) {
 			let receiver = this._voiceReceivers.get(member.voiceChannelID);
 			if (receiver) {
@@ -72,7 +72,7 @@ class Podbot {
 		}
 	}
 
-	_podon(member){
+	_podon(member) {
 		if (!this._checkMemberHasPermissions(member)) {
 			return;
 		}
@@ -84,13 +84,15 @@ class Podbot {
 		this._podcastNames.set(member.voiceChannelID, podcastName);
 		Podbot._makeDirectory(path.join(this.podcastsPath, podcastName));
 
-		member.voiceChannel.join().then((voiceConnection) =>{
+		member.voiceChannel.join().then((voiceConnection) => {
 			this._voiceConnections.set(member.voiceChannelID, voiceConnection);
-			this._voiceReceivers.set(member.voiceChannelID, voiceConnection.createReceiver());
+			const voiceReceiver = voiceConnection.createReceiver();
+			voiceReceiver.on('warn', console.log);
+			this._voiceReceivers.set(member.voiceChannelID, voiceReceiver);
 		}).catch(console.error);
 	}
 
-	_podoff(member){
+	_podoff(member) {
 		if (!this._checkMemberHasPermissions(member)) {
 			return;
 		}
@@ -102,19 +104,19 @@ class Podbot {
 		this._podcastNames.delete(member.voiceChannelID);
 	}
 
-	_checkMemberHasPermissions(member){
+	_checkMemberHasPermissions(member) {
 		if (this._controllerUsers.has(member.user)) {
 			return true;
 		}
 	}
 
-	static _makePodcastsDirectory(){
+	static _makePodcastsDirectory() {
 		let dir = path.join('.', 'podcasts');
 		Podbot._makeDirectory(dir);
 		return dir;
 	}
 
-	static _makeDirectory(dir){
+	static _makeDirectory(dir) {
 		try {
 			fs.mkdirSync(dir);
 		} catch (err) {
