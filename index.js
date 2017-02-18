@@ -4,6 +4,15 @@ const fs = require('fs');
 const path = require('path');
 const Discord = require('discord.js');
 
+const TOKEN = fs.readFileSync('./token', 'utf8').trim(); // Trim because linux
+const CONTROLLER_IDS = [];
+
+// Populate controller_ids
+fs.readFile('./controllers', 'utf8', (err, data) =>{
+	if (!err) {
+		[].push.apply(CONTROLLER_IDS, data.split(/\s+/));
+	}
+});
 
 const TOKEN = fs.readFileSync('./token', 'utf8').trim(); // Trim because linux
 
@@ -12,6 +21,8 @@ class Podbot {
 		this.client = new Discord.Client();
 		this.commandCharacter = '/';
 		this.podcastsPath = Podbot._makePodcastsDirectory();
+
+		this._controllerUsers = new Set();
 
 		this._voiceConnections = new Map();
 		this._voiceReceivers = new Map();
@@ -28,6 +39,12 @@ class Podbot {
 
 	_onReady() {
 		console.log('Ready!');
+
+		CONTROLLER_IDS.forEach((id) =>{
+			this.client.fetchUser(id).then(user =>{
+				this._controllerUsers.add(user);
+			}).catch(console.error);
+		});
 	}
 
 	_onMessage(message) {
@@ -112,8 +129,10 @@ class Podbot {
 		this._voiceConnections.delete(member.voiceChannelID);
 	}
 
-	_checkMemberHasPermissions(member) {
-		return true;
+	_checkMemberHasPermissions(member){
+		if (this._controllerUsers.has(member.user)) {
+			return true;
+		}
 	}
 
 	static _makePodcastsDirectory() {
