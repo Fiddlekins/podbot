@@ -47,6 +47,6 @@ let convertAllOpusStringToRawPCM = (inputDirectory) => {
 	});
 };
 
-let inputDirectory = path.join('podcasts', '253337420055969795-1487372479800');
+let inputDirectory = path.join('podcasts', process.argv[2]);
 
 convertAllOpusStringToRawPCM(inputDirectory);

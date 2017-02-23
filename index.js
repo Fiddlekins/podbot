@@ -14,8 +14,6 @@ fs.readFile('./controllers', 'utf8', (err, data) =>{
 	}
 });
 
-const TOKEN = fs.readFileSync('./token', 'utf8').trim(); // Trim because linux
-
 class Podbot {
 	constructor(token) {
 		this.client = new Discord.Client();
