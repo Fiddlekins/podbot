@@ -2,9 +2,9 @@
 
 const fs = require('fs');
 const path = require('path');
-const exec = require('child_process').exec;
+const child_process = require('child_process');
 
-const frequency = 24000;
+const frequency = 48000;
 
 // Define functions
 
@@ -55,94 +55,108 @@ let parseTimeIntoMilliseconds = (timeString) => {
 };
 
 let convertDurationToSamples = (duration) => {
-	return Math.ceil(frequency * duration / 1000);
+	let samples = frequency * duration / 1000;
+	let wholeSamples = Math.floor(samples);
+	return { samples: wholeSamples, remainder: samples - wholeSamples };
 };
 
-let addDelay = (inputPath, outputPath, delay) => {
+let reassemble = (config) => {
 	return new Promise((resolve, reject) => {
-		let command = `ffmpeg -f s32le -ar 24k -ac 2 -i ${inputPath} -af "adelay=${delay}|${delay}" -f s32le -acodec pcm_s32le ${outputPath}`;
-		exec(command, {}, (err, stdout, stderr) => {
-			if (err) {
-				reject(err);
-			}
-			resolve(stdout, stderr);
-		});
-	});
-};
-
-let addPad = (inputPath, outputPath, samples) => {
-	return new Promise((resolve, reject) => {
-		let command = `ffmpeg -f s32le -ar 24k -ac 2 -i ${inputPath} -y -af apad=whole_len=${samples} -f s32le -acodec pcm_s32le ${outputPath}`;
-		exec(command, {}, (err, stdout, stderr) => {
-			if (err) {
-				reject(err);
-			}
-			resolve(stdout, stderr);
-		});
-	});
-};
-
-let getDuration = (inputPath) => {
-	return new Promise((resolve, reject) => {
-		let command = `ffmpeg -f s32le -ar 24k -ac 2 -i ${inputPath} -f null -`;
-		exec(command, {}, (err, stdout, stderr) => {
-			if (err) {
-				reject(err);
-			}
-			let match = stderr.match(/time=([0-9:.]+)/);
-			let duration = parseTimeIntoMilliseconds(match[1]);
-
-			resolve(duration, stdout, stderr);
-		});
-	});
-};
-
-let merge = (inputPathArray, outputPath) => {
-	return new Promise((resolve, reject) => {
+		let outputPath = path.join(config.id);
+		let inputCommandArray = [];
+		let filterPadCommandArray = [];
+		let filterMergeCommandArray = [];
 		let inputCommand = '';
-		let filterInputCommand = '';
-		let i = 0;
-		for (let inputPath of inputPathArray) {
-			inputCommand += `-f s32le -ar 24k -ac 2 -i ${inputPath} `;
-			filterInputCommand += `[${i}:a]`;
-			i++;
-		}
-		let inputCount = inputPathArray.length;
+		let filterCommand = '';
+		let command = '';
+		let newCommand = '';
 
-		let command = `ffmpeg ${inputCommand}-filter_complex "${filterInputCommand}amerge=inputs=${inputCount}[aout]" -map "[aout]" -ac 2 -f s32le -acodec pcm_s32le ${outputPath}`;
-		exec(command, {}, (err, stdout, stderr) => {
-			if (err) {
-				reject(err);
+		let commands = [];
+		let temporaryOutputPath = `${config.id}-tmp-${commands.length}`;
+		let subConfig = {
+			id: config.id,
+			fragments: []
+		};
+
+		for (let fragmentIndex = 0, inputIndex = 0; fragmentIndex < config.fragments.length; fragmentIndex++) {
+			let fragment = config.fragments[fragmentIndex];
+			inputCommandArray[fragmentIndex] = `-f s16le -ar 48k -ac 2 -i ${fragment.name}`;
+
+			let filterCommands = [];
+			if (fragment.totalSampleLength) {
+				filterCommands.push(`apad=whole_len=${fragment.totalSampleLength}`);
 			}
-			resolve(stdout, stderr);
-		});
-	});
-};
+			if (fragment.delay) {
+				filterCommands.push(`adelay=${fragment.delay}|${fragment.delay}`);
+			}
+			if (filterCommands.length) {
+				filterPadCommandArray.push(`[${inputIndex}]${filterCommands.join(',')}[l${inputIndex}]`);
+			}
+			filterMergeCommandArray[inputIndex] = `[${filterCommands.length ? 'l' : ''}${inputIndex}]`;
 
-let concat = (inputPathArray, outputPath) => {
-	return new Promise((resolve, reject) => {
-		let inputCommand = '';
-		for (let inputPath of inputPathArray) {
-			inputCommand += `-f s32le -ar 24k -ac 2 -i ${inputPath} `;
+			inputCommand = inputCommandArray.join(' ');
+			filterCommand = `${filterPadCommandArray.join('; ')}${filterPadCommandArray.length ? '; ' : ''}${filterMergeCommandArray.join('')}concat=n=${inputIndex + 1}:v=0:a=1[a]`;
+
+			newCommand = `ffmpeg -y ${inputCommand} -filter_complex "${filterCommand}" -map "[a]" -f s16le -ar 48k -ac 2 ${temporaryOutputPath}`;
+			if (newCommand.length > 8000) {
+				commands.push(command);
+				subConfig.fragments.push({ name: temporaryOutputPath });
+				temporaryOutputPath = `${config.id}-tmp-${commands.length}`;
+				inputCommandArray.length = 0;
+				filterPadCommandArray.length = 0;
+				filterMergeCommandArray.length = 0;
+				fragmentIndex--;
+				inputIndex = 0;
+			} else {
+				command = newCommand;
+				inputIndex++;
+			}
 		}
 
-		let command = `ffmpeg ${inputCommand}-y -filter_complex "[0:0] [1:0] concat=n=2:v=0:a=1 [a0]" -map "[a0]" -ac 2 -f s32le -acodec pcm_s32le ${outputPath}`;
-		exec(command, {}, (err, stdout, stderr) => {
-			if (err) {
-				reject(err);
+		if (commands.length) {
+			commands.push(command);
+			subConfig.fragments.push({ name: temporaryOutputPath });
+			console.log(commands.length);
+
+			Promise.all(commands.map(command => {
+				return doCommand(command);
+			})).then(() => {
+				reassemble(subConfig).then((code) => {
+					resolve(code);
+				}).catch(reject);
+			}).catch(reject);
+		} else {
+			command = `ffmpeg -y ${inputCommand} -filter_complex "${filterCommand}" -map "[a]" -f s16le -ar 48k -ac 2 ${outputPath}`;
+			console.log(command);
+			doCommand(command).then(resolve).catch(reject);
+		}
+	});
+};
+
+let doCommand = (command) => {
+	return new Promise((resolve, reject) => {
+		console.log('new command');
+		let child = child_process.spawn(command, { shell: true });
+		let string = '';
+		child.stderr.on('data', (data) => {
+			string += data
+		});
+		child.on('close', (code) => {
+			console.log(code);
+			if (code !== 0) {
+				console.log(string);
 			}
-			resolve(stdout, stderr);
+			resolve(code);
+		});
+		child.on('error', (err) => {
+			console.log(err);
+			reject(err);
 		});
 	});
 };
 
-let addTemporaryFile = (userId, filePath) => {
-	temporaryFiles[userId] = temporaryFiles[userId] || new Set();
-	temporaryFiles[userId].add(filePath);
-};
-
-let assembleUsers = () => {
-	fs.readdir(inputDirectory, (err, files) => {
+let assembleUsers = (inputDirectory) => {
+	fs.readdir(inputDirectory, async(err, files) => {
 		files.forEach((file) => {
 			let ext = path.extname(file);
 			if (ext === '.raw_pcm') {
@@ -154,141 +168,48 @@ let assembleUsers = () => {
 						fragments: []
 					};
 				users[userId].fragments.push({
-					name: filename,
+					name: file,
 					timestamp: timestamp,
 					offset: timestamp - podcastTimestamp
 				});
 			}
 		});
 
+		process.chdir(inputDirectory);
+
 		for (let userId in users) {
 			if (users.hasOwnProperty(userId)) {
 				let user = users[userId];
 				user.fragmentCount = user.fragments.length;
-				delayFirstFragment(user);
+				// Make sure we've got the fragments in chronological order
+				user.fragments.sort((a, b) => {
+					return a.offset - b.offset;
+				});
+				// Set the delay for the first fragment
+				user.fragments[0].delay = user.fragments[0].offset;
+
+				// Track the fractions of samples that cannot immediately be added
+				let leftOvers = 0;
+				// Calculate the total sample count for each fragment in preparation for padding them with silence until they meet that total
+				// For samples that have both a pad and a delay applied the delay must come second because the following doesn't account for it
+				for (let fragmentIndex = 0; fragmentIndex < user.fragments.length - 1; fragmentIndex++) {
+					let fragment = user.fragments[fragmentIndex];
+					let nextFragment = user.fragments[fragmentIndex + 1];
+					let { samples, remainder } = convertDurationToSamples(nextFragment.offset - fragment.offset);
+					// Top up the leftover samples with the remainder
+					leftOvers += remainder;
+					// See if we've enough for a full sample yet
+					let usableLeftOvers = Math.floor(leftOvers);
+					// Adjust leftovers and current sample count accordingly to try and ensure we don't lose any time
+					leftOvers -= usableLeftOvers;
+					samples += usableLeftOvers;
+					fragment.totalSampleLength = samples;
+				}
+
+				await reassemble(user).catch(console.error);
 			}
 		}
 	});
-};
-
-let delayFirstFragment = (user) => {
-	user.fragments.sort((a, b) => {
-		return a.offset - b.offset;
-	});
-	let fragment = user.fragments[0];
-	let inputPath = path.join(inputDirectory, fragment.name);
-	user.flipFlop = 1;
-	let outputPath = path.join(inputDirectory, `${user.id}_${user.flipFlop}`);
-	let delay = fragment.offset;
-	addDelay(inputPath, outputPath, delay).then((stdout, stderr) => {
-		user.fragments.shift();
-		padAndConcatenateFragments(user);
-	}).catch(console.error);
-};
-
-let padAndConcatenateFragments = (user) => {
-	let nextFragment = user.fragments.shift();
-	if (nextFragment) {
-		let totalSamples = convertDurationToSamples(nextFragment.offset);
-		let inputPath = path.join(inputDirectory, `${user.id}_${user.flipFlop}`);
-		let outputPath = path.join(inputDirectory, `${user.id}_${1 - user.flipFlop}`);
-		addTemporaryFile(user.id, inputPath);
-		addTemporaryFile(user.id, outputPath);
-		user.flipFlop = 1 - user.flipFlop;
-		addPad(inputPath, outputPath, totalSamples).then((stdout, stderr) => {
-			inputPath = path.join(inputDirectory, `${user.id}_${user.flipFlop}`);
-			outputPath = path.join(inputDirectory, `${user.id}_${1 - user.flipFlop}`);
-			user.flipFlop = 1 - user.flipFlop;
-			let inputPathArray = [inputPath, path.join(inputDirectory, nextFragment.name)];
-			concat(inputPathArray, outputPath).then((stderr, stdout) => {
-				console.log(`User ${user.id} has completed ${100 * (user.fragmentCount - user.fragments.length) / user.fragmentCount}%`);
-				if (user.fragments.length) {
-					padAndConcatenateFragments(user);
-				} else {
-					fs.rename(outputPath, path.join(inputDirectory, user.id), (err) => {
-						cleanTemporaryFiles(user);
-					});
-				}
-			}).catch(console.error);
-		}).catch(console.error);
-	} else {
-		fs.rename(path.join(inputDirectory, `${user.id}_${user.flipFlop}`), path.join(inputDirectory, user.id), (err) => {
-			cleanTemporaryFiles(user);
-		});
-	}
-};
-
-let addFragmentDelay = (user) => {
-	let outstandingFragmentCount = user.fragments.length;
-	for (let fragment of user.fragments) {
-		let inputPath = path.join(inputDirectory, fragment.name);
-		let outputPath = path.join(inputDirectory, fragment.name + '-delay');
-		addTemporaryFile(user.id, outputPath);
-		let delay = fragment.offset;
-		addDelay(inputPath, outputPath, delay).then((stdout, stderr) => {
-			outstandingFragmentCount--;
-			if (outstandingFragmentCount <= 0) {
-				addFragmentDelayFinished(user);
-			}
-		}).catch(console.error);
-	}
-};
-
-let addFragmentDelayFinished = (user) => {
-	user.fragments.sort((a, b) => {
-		return b.offset - a.offset;
-	});
-	let inputPath = path.join(inputDirectory, user.fragments[0].name + '-delay');
-	getDuration(inputPath).then((duration, stdout, stderr) => {
-		let samples = convertDurationToSamples(duration + 1000); // Add a second to ensure all fragments hit same total duration
-		addFragmentPad(user, samples);
-	}).catch(console.error);
-};
-
-let addFragmentPad = (user, samples) => {
-	let outstandingFragmentCount = user.fragments.length;
-	for (let fragment of user.fragments) {
-		let inputPath = path.join(inputDirectory, fragment.name + '-delay');
-		let outputPath = path.join(inputDirectory, fragment.name + '-delay-pad');
-		addTemporaryFile(user.id, outputPath);
-		addPad(inputPath, outputPath, samples).then((stdout, stderr) => {
-			outstandingFragmentCount--;
-			if (outstandingFragmentCount <= 0) {
-				addFragmentPadFinished(user);
-			}
-		}).catch(console.error);
-	}
-};
-
-let addFragmentPadFinished = (user) => {
-	let inputPathArray = user.fragments.map((fragment) => {
-		return path.join(inputDirectory, fragment.name + '-delay-pad');
-	});
-	let outputPath = path.join(inputDirectory, user.id);
-	merge(inputPathArray, outputPath).then((stdout, stderr) => {
-		console.log(stdout);
-		cleanTemporaryFiles(user);
-	}).catch(console.error);
-};
-
-let cleanTemporaryFiles = (user) => {
-	let files = temporaryFiles[user.id];
-	if (files) {
-		files.forEach((filePath) => {
-			fs.unlink(filePath, (err) => {
-				files.delete(filePath);
-				if (files.size <= 0) {
-					cleanTemporaryFilesFinished(user);
-				}
-			});
-		});
-	} else {
-		cleanTemporaryFilesFinished(user);
-	}
-};
-
-let cleanTemporaryFilesFinished = (user) => {
-	console.log(`User ${user.id} finished!`);
 };
 
 // And then do the rest
@@ -302,4 +223,4 @@ let podcastTimestamp = extractTimestamp(podcastName);
 let users = {};
 let temporaryFiles = {};
 
-assembleUsers();
+assembleUsers(inputDirectory);
