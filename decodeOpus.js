@@ -19,9 +19,19 @@ let convertOpusStringToRawPCM = (inputPath, filename) => {
 		let buffers = frames.map(str => {
 			return Buffer.from(str, 'hex');
 		});
-		buffers = buffers.map(buffer => {
-			return encoder.decode(buffer, frame_size);
-		});
+		try {
+			buffers = buffers.map(buffer => {
+				return encoder.decode(buffer, frame_size);
+			});
+		} catch (err) {
+			try {
+				buffers = buffers.map(buffer => {
+					return encoder.decode(buffer.slice(8), frame_size);
+				});
+			} catch (err) {
+				console.log(`${filename} was unable to be decoded`);
+			}
+		}
 		let outputStream = fs.createWriteStream(path.join(path.dirname(inputPath), `${filename}.raw_pcm`));
 		for (let buffer of buffers) {
 			outputStream.write(buffer);
