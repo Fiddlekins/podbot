@@ -121,10 +121,12 @@ class Podbot {
 			return;
 		}
 
-		this._voiceReceivers.get(member.voiceChannelID).destroy();
-		this._voiceReceivers.delete(member.voiceChannelID);
-		this._voiceConnections.get(member.voiceChannelID).disconnect();
-		this._voiceConnections.delete(member.voiceChannelID);
+		if (this._voiceReceivers.get(member.voiceChannelID)) {
+			this._voiceReceivers.get(member.voiceChannelID).destroy();
+			this._voiceReceivers.delete(member.voiceChannelID);
+			this._voiceConnections.get(member.voiceChannelID).disconnect();
+			this._voiceConnections.delete(member.voiceChannelID);
+		}
 	}
 
 	_checkMemberHasPermissions(member){
