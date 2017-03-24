@@ -7,7 +7,12 @@ Click [here](https://discordapp.com/oauth2/authorize?client_id=27072405123471769
 - `/podon` - The bot starts recording
 - `/podoff` - The bot stops recording
   
-The bot will generate audio fragments saved to `podbot\podcasts\<channelId-timestamp>`. These will need to be reassembled using the processFragments.js file in the following fashion:
+The bot will generate audio fragments saved to `podbot\podcasts\<channelId-timestamp>.opus_string`. 
+These will need to be first decoded into PCM by doing:
+
+`node decodeOpus.js <name of the folder containing the podcast session you want processed>`
+
+These will then need to be reassembled using the processFragments.js file in the following fashion:
 
 `node processFragments.js <name of the folder containing the podcast session you want processed>`
 
