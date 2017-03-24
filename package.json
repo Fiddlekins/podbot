@@ -17,9 +17,10 @@
   },
   "homepage": "https://github.com/Fiddlekins/podbot#readme",
   "dependencies": {
-    "discord.js": "github:hydrabolt/discord.js#indev-prism",
+    "discord.js": "github:hydrabolt/discord.js",
     "erlpack": "github:hammerandchisel/erlpack",
     "node-opus": "^0.2.4",
+    "sodium": "^2.0.1",
     "uws": "^0.12.0"
   }
 }

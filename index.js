@@ -25,7 +25,7 @@ class Podbot {
 
 		this._voiceConnections = new Map();
 		this._voiceReceivers = new Map();
-		this._podcastNames = new Map();
+		this._writeStreams = new Map();
 
 		this.client.on('ready', this._onReady.bind(this));
 
@@ -60,14 +60,19 @@ class Podbot {
 	}
 
 	_onGuildMemberSpeaking(member, speaking) {
-		if (speaking && member.voiceChannel) {
+		// Close the writeStream when a member stops speaking
+		if (!speaking && member.voiceChannel) {
 			let receiver = this._voiceReceivers.get(member.voiceChannelID);
 			if (receiver) {
-				let podcastName = this._podcastNames.get(member.voiceChannelID);
-				let outputPath = path.join(this.podcastsPath, podcastName, `${member.id}-${Date.now()}`);
-				let inputStream = receiver.createPCMStream(member);
-				let outputStream = fs.createWriteStream(outputPath);
-				inputStream.pipe(outputStream);
+				let writeStream = this._writeStreams.get(member.id);
+				if (writeStream) {
+					this._writeStreams.delete(member.id);
+					writeStream.end(err => {
+						if (err) {
+							console.error(err);
+						}
+					});
+				}
 			}
 		}
 	}
@@ -81,13 +86,33 @@ class Podbot {
 		}
 
 		let podcastName = `${member.voiceChannelID}-${Date.now()}`;
-		this._podcastNames.set(member.voiceChannelID, podcastName);
 		Podbot._makeDirectory(path.join(this.podcastsPath, podcastName));
 
 		member.voiceChannel.join().then((voiceConnection) => {
 			this._voiceConnections.set(member.voiceChannelID, voiceConnection);
-			const voiceReceiver = voiceConnection.createReceiver();
-			voiceReceiver.on('warn', console.log);
+			let voiceReceiver = voiceConnection.createReceiver();
+			voiceReceiver.on('opus', (user, data) => {
+				let hexString = data.toString('hex');
+				let writeStream = this._writeStreams.get(user.id);
+				if (!writeStream) {
+					/* If there isn't an ongoing writeStream and a frame of silence is received then it must be the
+					 *   left over trailing silence frames used to signal the end of the transmission.
+					 * If we do not ignore this frame at this point we will create a new writeStream that is labelled
+					 *   as starting at the current time, but there will actually be a time delay before it is further
+					 *   populated by data once the user has begun speaking again.
+					 * This delay would not be captured however since no data is sent for it, so the result would be
+					 *   the audio fragments being out of time when reassembled.
+					 * For this reason a packet of silence cannot be used to create a new writeStream.
+					 */
+					if (hexString === 'f8fffe') {
+						return;
+					}
+					let outputPath = path.join(this.podcastsPath, podcastName, `${user.id}-${Date.now()}.opus_string`);
+					writeStream = fs.createWriteStream(outputPath);
+					this._writeStreams.set(user.id, writeStream);
+				}
+				writeStream.write(`,${hexString}`);
+			});
 			this._voiceReceivers.set(member.voiceChannelID, voiceReceiver);
 		}).catch(console.error);
 	}
@@ -97,11 +122,12 @@ class Podbot {
 			return;
 		}
 
-		this._voiceReceivers.get(member.voiceChannelID).destroy();
-		this._voiceReceivers.delete(member.voiceChannelID);
-		this._voiceConnections.get(member.voiceChannelID).disconnect();
-		this._voiceConnections.delete(member.voiceChannelID);
-		this._podcastNames.delete(member.voiceChannelID);
+		if (this._voiceReceivers.get(member.voiceChannelID)) {
+			this._voiceReceivers.get(member.voiceChannelID).destroy();
+			this._voiceReceivers.delete(member.voiceChannelID);
+			this._voiceConnections.get(member.voiceChannelID).disconnect();
+			this._voiceConnections.delete(member.voiceChannelID);
+		}
 	}
 
 	_checkMemberHasPermissions(member) {
