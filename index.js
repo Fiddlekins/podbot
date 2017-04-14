@@ -78,6 +78,9 @@ class Podbot {
 	}
 
 	_podon(member) {
+		if (!member) {
+			return;
+		}
 		if (!this._checkMemberHasPermissions(member)) {
 			return;
 		}
@@ -118,6 +121,9 @@ class Podbot {
 	}
 
 	_podoff(member) {
+		if (!member) {
+			return;
+		}
 		if (!this._checkMemberHasPermissions(member)) {
 			return;
 		}
