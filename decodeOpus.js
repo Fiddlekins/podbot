@@ -48,12 +48,16 @@ let convertOpusStringToRawPCM = (inputPath, filename) => {
 
 let convertAllOpusStringToRawPCM = (inputDirectory) => {
 	fs.readdir(inputDirectory, (err, files) => {
-		files.forEach((file) => {
-			let ext = path.extname(file);
-			if (ext === '.opus_string') {
-				convertOpusStringToRawPCM(path.join(inputDirectory, file), path.basename(file, ext));
-			}
-		});
+		if (err) {
+			console.error(`Could not read input due to: ${err}`);
+		} else {
+			files.forEach((file) => {
+				let ext = path.extname(file);
+				if (ext === '.opus_string') {
+					convertOpusStringToRawPCM(path.join(inputDirectory, file), path.basename(file, ext));
+				}
+			});
+		}
 	});
 };
 
