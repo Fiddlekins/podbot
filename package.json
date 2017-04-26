@@ -20,7 +20,6 @@
     "discord.js": "github:hydrabolt/discord.js",
     "erlpack": "github:hammerandchisel/erlpack",
     "node-opus": "^0.2.4",
-    "sodium": "^2.0.1",
-    "uws": "^0.12.0"
+    "sodium": "^2.0.1"
   }
 }
