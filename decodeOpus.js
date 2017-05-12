@@ -11,31 +11,43 @@ const channels = 2;
 let total = 0;
 let complete = 0;
 
+let getDecodedFrame = (frameString, encoder, filename) => {
+	let buffer = Buffer.from(frameString, 'hex');
+	try {
+		buffer = encoder.decode(buffer, frame_size);
+	} catch (err) {
+		try {
+			buffer = encoder.decode(buffer.slice(8), frame_size);
+		} catch (err) {
+			console.log(`${filename} was unable to be decoded`);
+			return null;
+		}
+	}
+	return buffer;
+};
+
 let convertOpusStringToRawPCM = (inputPath, filename) => {
 	total++;
 	let encoder = new opus.OpusEncoder(rate, channels);
-	fs.readFile(inputPath, { encoding: 'utf8' }, (err, data) => {
-		let frames = data.slice(1).split(','); // Starts with a comma so toss the empty first entry
-		let buffers = frames.map(str => {
-			return Buffer.from(str, 'hex');
-		});
-		try {
-			buffers = buffers.map(buffer => {
-				return encoder.decode(buffer, frame_size);
-			});
-		} catch (err) {
-			try {
-				buffers = buffers.map(buffer => {
-					return encoder.decode(buffer.slice(8), frame_size);
-				});
-			} catch (err) {
-				console.log(`${filename} was unable to be decoded`);
+	const inputStream = fs.createReadStream(inputPath);
+	const outputStream = fs.createWriteStream(path.join(path.dirname(inputPath), `${filename}.raw_pcm`));
+	let data = '';
+	inputStream.on('data', chunk => {
+		data += chunk.toString();
+		const frames = data.split(',');
+		if (frames.length) {
+			data = frames.pop();
+		}
+		for (let frame of frames) {
+			if (frame !== '') {
+				const decodedBuffer = getDecodedFrame(frame, encoder, filename);
+				if (decodedBuffer) {
+					outputStream.write(decodedBuffer);
+				}
 			}
 		}
-		let outputStream = fs.createWriteStream(path.join(path.dirname(inputPath), `${filename}.raw_pcm`));
-		for (let buffer of buffers) {
-			outputStream.write(buffer);
-		}
+	});
+	inputStream.on('end', () => {
 		outputStream.end((err) => {
 			if (err) {
 				console.error(err);
