@@ -48,7 +48,7 @@ class Podbot {
 		this.client.on('warn', console.warn);
 
 		process.on('unhandledRejection', (error) => {
-			console.error('Uncaught Promise Error: \n${error.stack}');
+			console.error(`Uncaught Promise Error: \n${error.stack}`);
 		});
 
 		process.on('uncaughtException', (err) => {
