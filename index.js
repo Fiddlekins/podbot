@@ -35,12 +35,25 @@ class Podbot {
 
 		this.client.on('guildMemberSpeaking', this._onGuildMemberSpeaking.bind(this));
 		
+		this.client.on('disconnect', (event) => {
+			setTimeout(() => this.client.destroy().then(() => this.client.login(token)), TIMEOUT);
+			console.log(`[DISCONNECT] Notice: Disconnected from gateway with ${event.code}. Attempting reconnect.`);
+		});
+
+		this.client.on('reconnecting', () => {
+			console.log(`[NOTICE] ReconnectAction: Reconnecting to Discord...`);
+		});
+
+		this.client.on('error', console.error);
+		this.client.on('warn', console.warn);
+		
+		this.client.login(token).catch(console.error);
 	}
 	
 	_onReady() {
   		console.log(`[READY] Connected as ${this.client.user.username}#${this.client.user.discriminator} ${this.client.user.id}`);
 		if (GAME) { 
-			this.client.user.setGame(GAME); // set optional bot game here
+			this.client.user.setGame(GAME); 
 		}	
 		CONTROLLER_IDS.forEach((id) => {
 			this.client.fetchUser(id).then(user => {
@@ -160,18 +173,6 @@ class Podbot {
 	}
 }
 
-this.client.on('disconnect', (event) => {
-	setTimeout(() => this.client.destroy().then(() => this.client.login(token)), TIMEOUT);
-       	console.log(`[DISCONNECT] Notice: Disconnected from gateway with ${event.code}. Attempting reconnect.`);
-});
-
-this.client.on('reconnecting', () => {
-	console.log(`[NOTICE] ReconnectAction: Reconnecting to Discord...`);
-});
-
-this.client.on('error', console.error);
-this.client.on('warn', console.warn);
-
 process.on('unhandledRejection', (error) => {
 	console.error(`Uncaught Promise Error: \n${error.stack}`);
 });
@@ -182,5 +183,3 @@ process.on('uncaughtException', (err) => {
 });
 
 const podbot = new Podbot(TOKEN);
-
-this.client.login(token).catch(console.error);
