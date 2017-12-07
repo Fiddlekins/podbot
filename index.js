@@ -58,7 +58,7 @@ class Podbot {
 	}
 	_onReady() {
 		console.log('Ready!');
-		this.client.user.setGame('\ud83d\udc40');
+		this.client.user.setGame(''); // set optional bot game here
 		CONTROLLER_IDS.forEach((id) => {
 			this.client.fetchUser(id).then(user => {
 				this._controllerUsers.add(user);
