@@ -6,6 +6,8 @@ const Discord = require('discord.js');
 
 const TOKEN = fs.readFileSync('./token', 'utf8').trim(); // Trim because linux
 const CONTROLLER_IDS = [];
+const TIMEOUT = 10000; // timeout in ms for disconnections
+const GAME = ""; // set optional game here
 
 // Populate controller_ids
 fs.readFile('./controllers', 'utf8', (err, data) => {
@@ -32,33 +34,14 @@ class Podbot {
 		this.client.on('message', this._onMessage.bind(this));
 
 		this.client.on('guildMemberSpeaking', this._onGuildMemberSpeaking.bind(this));
-
-		this.client.login(token).catch(console.error);
-
-		this.client.on('disconnect', () => {
-        		setTimeout(() => this.client.destroy().then(() => this.client.login(token)), 10000);
-        		console.log('[DISCONNECT] Notice: Disconnected from gateway. Attempting reconnect.');
-		});
-
-		this.client.on('reconnecting', () => {
-			console.log('[NOTICE] ReconnectAction: Reconnecting to Discord...');
-		});
-
-		this.client.on('error', console.error);
-		this.client.on('warn', console.warn);
-
-		process.on('unhandledRejection', (error) => {
-			console.error(`Uncaught Promise Error: \n${error.stack}`);
-		});
-
-		process.on('uncaughtException', (err) => {
-			let errmsg = (err ? err.stack || err : '').toString().replace(new RegExp(`${__dirname}/`, 'g'), './');
-  			console.error(errmsg);
-		});
+		
 	}
+	
 	_onReady() {
   		console.log(`[READY] Connected as ${this.client.user.username}#${this.client.user.discriminator} ${this.client.user.id}`);
-		this.client.user.setGame(''); // set optional bot game here
+		if (GAME) { 
+			this.client.user.setGame(GAME); // set optional bot game here
+		}	
 		CONTROLLER_IDS.forEach((id) => {
 			this.client.fetchUser(id).then(user => {
 				this._controllerUsers.add(user);
@@ -177,4 +160,27 @@ class Podbot {
 	}
 }
 
+this.client.on('disconnect', (event) => {
+	setTimeout(() => this.client.destroy().then(() => this.client.login(token)), TIMEOUT);
+       	console.log(`[DISCONNECT] Notice: Disconnected from gateway with ${event.code}. Attempting reconnect.`);
+});
+
+this.client.on('reconnecting', () => {
+	console.log(`[NOTICE] ReconnectAction: Reconnecting to Discord...`);
+});
+
+this.client.on('error', console.error);
+this.client.on('warn', console.warn);
+
+process.on('unhandledRejection', (error) => {
+	console.error(`Uncaught Promise Error: \n${error.stack}`);
+});
+
+process.on('uncaughtException', (err) => {
+	let errmsg = (err ? err.stack || err : '').toString().replace(new RegExp(`${__dirname}/`, 'g'), './');
+  	console.error(errmsg);
+});
+
 const podbot = new Podbot(TOKEN);
+
+this.client.login(token).catch(console.error);
