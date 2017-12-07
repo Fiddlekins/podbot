@@ -34,11 +34,31 @@ class Podbot {
 		this.client.on('guildMemberSpeaking', this._onGuildMemberSpeaking.bind(this));
 
 		this.client.login(token).catch(console.error);
-	}
 
+		this.client.on('disconnect', () => {
+        		setTimeout(() => this.client.destroy().then(() => this.client.login(token)), 10000);
+        		console.log(`[DISCONNECT] Notice: Disconnected from gateway. Attempting reconnect.`);
+		});
+
+		this.client.on('reconnecting', () => {
+			console.log(`[NOTICE] ReconnectAction: Reconnecting to Discord...`);
+		});
+
+		this.client.on('error', console.error);
+		this.client.on('warn', console.warn);
+
+		process.on('unhandledRejection', (error) => {
+			console.error(`Uncaught Promise Error: \n${error.stack}`);
+		});
+
+		process.on('uncaughtException', (err) => {
+			let errmsg = (err ? err.stack || err : '').toString().replace(new RegExp(`${__dirname}/`, 'g'), './');
+  			console.error(errmsg);
+		});
+	}
 	_onReady() {
 		console.log('Ready!');
-
+		this.client.user.setGame('\ud83d\udc40');
 		CONTROLLER_IDS.forEach((id) => {
 			this.client.fetchUser(id).then(user => {
 				this._controllerUsers.add(user);
