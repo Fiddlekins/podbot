@@ -37,18 +37,18 @@ class Podbot {
 
 		this.client.on('disconnect', () => {
         		setTimeout(() => this.client.destroy().then(() => this.client.login(token)), 10000);
-        		console.log(`[DISCONNECT] Notice: Disconnected from gateway. Attempting reconnect.`);
+        		console.log('[DISCONNECT] Notice: Disconnected from gateway. Attempting reconnect.');
 		});
 
 		this.client.on('reconnecting', () => {
-			console.log(`[NOTICE] ReconnectAction: Reconnecting to Discord...`);
+			console.log('[NOTICE] ReconnectAction: Reconnecting to Discord...');
 		});
 
 		this.client.on('error', console.error);
 		this.client.on('warn', console.warn);
 
 		process.on('unhandledRejection', (error) => {
-			console.error(`Uncaught Promise Error: \n${error.stack}`);
+			console.error('Uncaught Promise Error: \n${error.stack}');
 		});
 
 		process.on('uncaughtException', (err) => {
@@ -57,7 +57,7 @@ class Podbot {
 		});
 	}
 	_onReady() {
-		console.log('Ready!');
+  		console.log(`[READY] Connected as ${this.client.user.username}#${this.client.user.discriminator} ${this.client.user.id}`);
 		this.client.user.setGame(''); // set optional bot game here
 		CONTROLLER_IDS.forEach((id) => {
 			this.client.fetchUser(id).then(user => {
