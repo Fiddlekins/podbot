@@ -4,11 +4,13 @@ A Discord bot designed to record voice chat audio, aimed at recording a specific
 Click [here](https://discordapp.com/oauth2/authorize?client_id=270724051234717698&scope=bot&permissions=133237760) to add my instance of it.
 
 ### GIB PODCAST NAO
-Someone has actually adapted this project and wrapped it up in a user-friendly package.  
+~~Someone has actually adapted this project and wrapped it up in a user-friendly package.  
 Go take a look at [podframe](https://podframe.com/) if you want to be able to just add a bot
-and start recording.
+and start recording.~~
 
-(This is made by some chap by the name of _leanon over on this [reddit thread](https://www.reddit.com/r/discordapp/comments/6733u8/i_made_a_discord_bot_which_lets_you_record_a/?st=j1yqjsv8&sh=d25c1299))
+~~(This is made by some chap by the name of _leanon over on this [reddit thread](https://www.reddit.com/r/discordapp/comments/6733u8/i_made_a_discord_bot_which_lets_you_record_a/?st=j1yqjsv8&sh=d25c1299))~~
+
+Podframe is ded, you'll need to run your own podbot.
 
 ### The current commands are:
 - `/podon` - The bot starts recording
