@@ -84,15 +84,31 @@ async function promptConfigCreation() {
 }
 
 function run(config) {
-	const podbot = new Podbot(config.podbot);
+	let podbot = new Podbot(config.podbot);
+	let timeout = null;
+
+	const uncrash = () => {
+		if (timeout === null) {
+			console.log('Destroying podbot');
+			podbot.destroy().then(() => {
+				timeout = setTimeout(() => {
+					console.log('Recreating podbot');
+					timeout = null;
+					podbot = new Podbot(config.podbot);
+				}, config.timeout);
+			})
+		}
+	};
 
 	process.on('unhandledRejection', (err) => {
 		console.error(`Uncaught Promise Error: \n${err.stack}`);
+		uncrash();
 	});
 
 	process.on('uncaughtException', (err) => {
 		let errmsg = (err ? err.stack || err : '').toString().replace(new RegExp(`${__dirname}/`, 'g'), './');
 		console.error(errmsg);
+		uncrash();
 	});
 }
 

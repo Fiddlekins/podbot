@@ -34,9 +34,19 @@ class Podbot {
 		this._init();
 	}
 
-	destroy() {
-		this._client.destroy();
-		//TODO tidy up existing read/write streams
+	async destroy() {
+		await this._client.destroy();
+		this._client = null;
+		this._writeStreams.forEach(stream => {
+			try {
+				stream.destroy('Podbot destroyed');
+			} catch (err) {
+				console.error(err);
+			}
+		});
+		this._voiceConnections.clear();
+		this._voiceReceivers.clear();
+		this._writeStreams.clear();
 	}
 
 	async _init() {
