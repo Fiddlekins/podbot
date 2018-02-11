@@ -4,19 +4,19 @@ const fs = require('fs-extra');
 const path = require('path');
 const opus = require('node-opus');
 
-const rate = 48000;
-const frame_size = 1920;
-const channels = 2;
-
+const RATE = 48000;
+const FRAME_SIZE = 1920;
+const CHANNELS = 2;
 const INPUT_EXTENSION = '.opus_string';
+const OUTPUT_EXTENSION = '.raw_pcm';
 
 function getDecodedFrame(frameString, encoder, filename) {
 	let buffer = Buffer.from(frameString, 'hex');
 	try {
-		buffer = encoder.decode(buffer, frame_size);
+		buffer = encoder.decode(buffer, FRAME_SIZE);
 	} catch (err) {
 		try {
-			buffer = encoder.decode(buffer.slice(8), frame_size);
+			buffer = encoder.decode(buffer.slice(8), FRAME_SIZE);
 		} catch (err) {
 			console.log(`${filename} was unable to be decoded`);
 			return null;
@@ -27,9 +27,9 @@ function getDecodedFrame(frameString, encoder, filename) {
 
 function convertOpusStringToRawPCM(inputPath, filename) {
 	return new Promise((resolve, reject) => {
-		let encoder = new opus.OpusEncoder(rate, channels);
+		let encoder = new opus.OpusEncoder(RATE, CHANNELS);
 		const inputStream = fs.createReadStream(inputPath);
-		const outputStream = fs.createWriteStream(path.join(path.dirname(inputPath), `${filename}.raw_pcm`));
+		const outputStream = fs.createWriteStream(path.join(path.dirname(inputPath), `${filename}${OUTPUT_EXTENSION}`));
 		let data = '';
 		inputStream.on('data', chunk => {
 			data += chunk.toString();
@@ -77,6 +77,6 @@ async function convertAllOpusStringToRawPCM(inputDirectory) {
 	}));
 }
 
-let inputDirectory = path.join('podcasts', process.argv[2]);
-
-convertAllOpusStringToRawPCM(inputDirectory);
+module.exports = {
+	decodeOpus: convertAllOpusStringToRawPCM
+};

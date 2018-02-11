@@ -3,24 +3,10 @@
 const fs = require('fs-extra');
 const path = require('path');
 const child_process = require('child_process');
+const { extractUserId, extractTimestamp, convertDurationToSamples } = require('./utils.js');
 
-const frequency = 48000;
-
+const RATE = 48000;
 const INPUT_EXTENSION = '.raw_pcm';
-
-function extractUserId(name) {
-	return name.split('-')[0];
-}
-
-function extractTimestamp(name) {
-	return parseInt(name.split('-')[1], 10);
-}
-
-function convertDurationToSamples(duration) {
-	let samples = frequency * duration / 1000;
-	let wholeSamples = Math.floor(samples);
-	return { samples: wholeSamples, remainder: samples - wholeSamples };
-}
 
 async function reassemble(config) {
 	let outputPath = path.join(config.id);
@@ -109,6 +95,7 @@ function doCommand(command) {
 
 async function assembleUsers(inputDirectory) {
 	const users = {};
+	const podcastTimestamp = extractTimestamp(inputDirectory.split(path.sep).pop());
 
 	const files = await fs.readdir(inputDirectory);
 	for (const file of files) {
@@ -147,7 +134,7 @@ async function assembleUsers(inputDirectory) {
 		for (let fragmentIndex = 0; fragmentIndex < user.fragments.length - 1; fragmentIndex++) {
 			let fragment = user.fragments[fragmentIndex];
 			let nextFragment = user.fragments[fragmentIndex + 1];
-			let { samples, remainder } = convertDurationToSamples(nextFragment.offset - fragment.offset);
+			let { samples, remainder } = convertDurationToSamples(nextFragment.offset - fragment.offset, RATE);
 			// Top up the leftover samples with the remainder
 			leftOvers += remainder;
 			// See if we've enough for a full sample yet
@@ -162,9 +149,6 @@ async function assembleUsers(inputDirectory) {
 	}
 }
 
-let inputDirectory = path.join('podcasts', process.argv[2]);
-let podcastName = inputDirectory.split(path.sep);
-podcastName = podcastName[podcastName.length - 1];
-let podcastTimestamp = extractTimestamp(podcastName);
-
-assembleUsers(inputDirectory).catch(console.error);
+module.exports = {
+	processFragments: assembleUsers
+};
