@@ -32,7 +32,9 @@ async function processDirectory(directory) {
 async function getPodcastList(podcastPath) {
 	try {
 		const podcasts = await fs.readdir(podcastPath);
-		return podcasts.reverse();
+		return podcasts.sort((podcast1, podcast2) => {
+			return extractTimestamp(podcast1) < extractTimestamp(podcast2);
+		});
 	} catch (err) {
 		return [];
 	}
