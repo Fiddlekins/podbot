@@ -73,7 +73,7 @@ class Podbot {
 					this._podon(message).catch(log.error);
 					break;
 				case 'podoff':
-					this._podoff(message);
+					this._podoff(message).catch(log.error);
 					break;
 			}
 		}
@@ -106,6 +106,7 @@ class Podbot {
 			return;
 		}
 		if (!member.voiceChannel) {
+			await message.reply(`you're not in a voice channel`);
 			return;
 		}
 		const podcastName = `${member.voiceChannelID}-${Date.now()}`;
@@ -139,12 +140,16 @@ class Podbot {
 		});
 	}
 
-	_podoff(message) {
+	async _podoff(message) {
 		const member = message.member;
 		if (!member) {
 			return;
 		}
 		if (!this._hasPermission(member)) {
+			return;
+		}
+		if (!member.voiceChannel) {
+			await message.reply(`you're not in a voice channel`);
 			return;
 		}
 		if (this._voiceReceivers.get(member.voiceChannelID)) {
