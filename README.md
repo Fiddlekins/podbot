@@ -14,9 +14,16 @@ and start recording.~~
 
 Podframe is ded, you'll need to run your own podbot.
 
-### The current commands are:
+- Clone this repo and do the thing with the discord and the applications.
+- Run `node index.js` or `npm run podbot` and go through the prompts to initialize configuration
+    - when prompted enter your bot token (right click to paste into the terminal)
+    - the default options will set podbot up to be controllable by users with roles named "podhandler". Create this role on your server and assign it accordingly
+    - you can use the `controllers.users` array to make specific users able to control the bot regardless of the server they're in
+- If `./config.json` already exists this initialisation will be skipped. Edit it manually if you want to tweak it afterwards
+
+### Using the bot:
 - `/podon` - The bot joins the voice channel the command user is in and starts recording
-- `/podoff` - The bot stops recording and leaves the voice channel
+- `/podoff` - The bot stops recording and leaves the voice channel the command user is in
   
 The bot will generate audio fragments saved to `podbot\podcasts\<channelId-timestamp>.opus_string`. 
 
@@ -25,7 +32,7 @@ These can be decoded and reassembled by running `npm run process` and picking th
 If you've got the podcast recording folder in a non-standard location you can process it by running `npm run process <path to podcast directory>`.
 
 This will generate a file for each recorded user with their discord ID as the filename.
-These files can then be imported into your favourite audio software (such as audacity) side by side and everything should line up on the timeline nicely.
+These files can then be imported into your favourite audio software (such as [Audacity](https://www.audacityteam.org/)) side by side and everything should line up on the timeline nicely.
 
 The output is signed 16-bit little endian PCM at 48KHz with 2 channels.
 Use the following options when importing into Audacity:
@@ -33,10 +40,3 @@ Use the following options when importing into Audacity:
 ![Audacity import options](./images/audacityImportOptions.png)
 
 Once you've imported all the different user tracks you can then export in your audio format of choice.
-
-## You want your own?
-Then clone this repo and do the thing with the discord and the applications.
-
-You will need to place a text file called 'token' in the root of the bot containing just the login token for your bot.
-
-You will also need to place a text file called 'controllers' in the same place containing whitespace separated user IDs in order for anyone to be able to control the bot.
