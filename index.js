@@ -1,185 +1,114 @@
 'use strict';
 
-const fs = require('fs');
+const fs = require('fs-extra');
 const path = require('path');
-const Discord = require('discord.js');
+const inquirer = require('inquirer');
+const Podbot = require('./js/Podbot.js');
 
-const TOKEN = fs.readFileSync('./token', 'utf8').trim(); // Trim because linux
-const CONTROLLER_IDS = [];
-const TIMEOUT = 10000; // timeout in ms for disconnections
-const GAME = ""; // set optional game here
+const configPath = path.join(__dirname, 'config.json');
 
-// Populate controller_ids
-fs.readFile('./controllers', 'utf8', (err, data) => {
-	if (!err) {
-		[].push.apply(CONTROLLER_IDS, data.split(/\s+/));
-	}
-});
-
-
-class Podbot {
-	constructor(token) {
-		this.client = new Discord.Client();
-		this.commandCharacter = '/';
-		this.podcastsPath = Podbot._makePodcastsDirectory();
-
-		this._controllerUsers = new Set();
-
-		this._voiceConnections = new Map();
-		this._voiceReceivers = new Map();
-		this._writeStreams = new Map();
-
-		this.client.on('ready', this._onReady.bind(this));
-
-		this.client.on('message', this._onMessage.bind(this));
-
-		this.client.on('guildMemberSpeaking', this._onGuildMemberSpeaking.bind(this));
-		
-		this.client.on('disconnect', (event) => {
-			setTimeout(() => this.client.destroy().then(() => this.client.login(token)), TIMEOUT);
-			console.log(`[DISCONNECT] Notice: Disconnected from gateway with ${event.code}. Attempting reconnect.`);
-		});
-
-		this.client.on('reconnecting', () => {
-			console.log(`[NOTICE] ReconnectAction: Reconnecting to Discord...`);
-		});
-
-		this.client.on('error', console.error);
-		this.client.on('warn', console.warn);
-		
-		this.client.login(token).catch(console.error);
-	}
-	
-	_onReady() {
-  		console.log(`[READY] Connected as ${this.client.user.username}#${this.client.user.discriminator} ${this.client.user.id}`);
-		if (GAME) { 
-			this.client.user.setGame(GAME); 
-		}	
-		CONTROLLER_IDS.forEach((id) => {
-			this.client.fetchUser(id).then(user => {
-				this._controllerUsers.add(user);
-			}).catch(console.error);
-		});
-	}
-
-	_onMessage(message) {
-		if (message.content.charAt(0) === this.commandCharacter) {
-			switch (message.content.slice(1)) {
-				case 'podon':
-					this._podon(message.member);
-					break;
-				case 'podoff':
-					this._podoff(message.member);
-					break;
-			}
+async function promptConfigCreation() {
+	const questions = [];
+	questions.push({
+		type: 'input',
+		name: 'token',
+		message: 'Input bot token:'
+	});
+	questions.push({
+		type: 'input',
+		name: 'podcastPath',
+		message: 'Input path to directory podbot will save podcasts to:',
+		default: `.${path.sep}podcasts`
+	});
+	questions.push({
+		type: 'input',
+		name: 'controllerRoles',
+		message: 'Input comma separated names of roles that podbot will listen to:',
+		default: 'podhandler'
+	});
+	questions.push({
+		type: 'input',
+		name: 'controllerUsers',
+		message: 'Input comma separated user IDs of users that podbot will listen to:',
+		default: ''
+	});
+	questions.push({
+		type: 'input',
+		name: 'commandPrefix',
+		message: 'Input string podbot will recognise as the command prefix:',
+		default: '/'
+	});
+	questions.push({
+		type: 'input',
+		name: 'game',
+		message: 'The game podbot should display as playing:',
+		default: ''
+	});
+	questions.push({
+		type: 'input',
+		name: 'timeout',
+		message: 'Specify how long podbot wait before attempting to restart after crashing in ms. (Be wary of rate limits):',
+		default: 10000,
+		validate: (input, answers) => {
+			const parsedInput = parseInt(input, 10);
+			return !isNaN(parsedInput) && parsedInput > 0;
 		}
-	}
+	});
+	questions.push({
+		type: 'confirm',
+		name: 'sanitizeLogs',
+		message: 'Should logs have folder paths sanitized:',
+		default: false
+	});
+	const answers = await inquirer.prompt(questions);
 
-	_onGuildMemberSpeaking(member, speaking) {
-		// Close the writeStream when a member stops speaking
-		if (!speaking && member.voiceChannel) {
-			let receiver = this._voiceReceivers.get(member.voiceChannelID);
-			if (receiver) {
-				let writeStream = this._writeStreams.get(member.id);
-				if (writeStream) {
-					this._writeStreams.delete(member.id);
-					writeStream.end(err => {
-						if (err) {
-							console.error(err);
-						}
-					});
-				}
-			}
-		}
-	}
+	const config = {
+		podbot: {
+			token: answers['token'].toString(),
+			podcastPath: answers['podcastPath'].toString(),
+			controllers: {
+				roles: answers['controllerRoles'].toString().split(',').filter(role => role.length > 0),
+				users: answers['controllerUsers'].toString().split(',').filter(role => role.length > 0)
+			},
+			commandPrefix: answers['commandPrefix'].toString(),
+			game: answers['game'].toString()
+		},
+		timeout: parseInt(answers['timeout'], 10),
+		sanitizeLogs: !!answers['sanitizeLogs']
+	};
 
-	_podon(member) {
-		if (!member) {
-			return;
-		}
-		if (!this._checkMemberHasPermissions(member)) {
-			return;
-		}
-		if (!member.voiceChannel) {
-			return;
-		}
+	await fs.writeJson(configPath, config, { spaces: '\t' });
 
-		let podcastName = `${member.voiceChannelID}-${Date.now()}`;
-		Podbot._makeDirectory(path.join(this.podcastsPath, podcastName));
-
-		member.voiceChannel.join().then((voiceConnection) => {
-			this._voiceConnections.set(member.voiceChannelID, voiceConnection);
-			let voiceReceiver = voiceConnection.createReceiver();
-			voiceReceiver.on('opus', (user, data) => {
-				let hexString = data.toString('hex');
-				let writeStream = this._writeStreams.get(user.id);
-				if (!writeStream) {
-					/* If there isn't an ongoing writeStream and a frame of silence is received then it must be the
-					 *   left over trailing silence frames used to signal the end of the transmission.
-					 * If we do not ignore this frame at this point we will create a new writeStream that is labelled
-					 *   as starting at the current time, but there will actually be a time delay before it is further
-					 *   populated by data once the user has begun speaking again.
-					 * This delay would not be captured however since no data is sent for it, so the result would be
-					 *   the audio fragments being out of time when reassembled.
-					 * For this reason a packet of silence cannot be used to create a new writeStream.
-					 */
-					if (hexString === 'f8fffe') {
-						return;
-					}
-					let outputPath = path.join(this.podcastsPath, podcastName, `${user.id}-${Date.now()}.opus_string`);
-					writeStream = fs.createWriteStream(outputPath);
-					this._writeStreams.set(user.id, writeStream);
-				}
-				writeStream.write(`,${hexString}`);
-			});
-			this._voiceReceivers.set(member.voiceChannelID, voiceReceiver);
-		}).catch(console.error);
-	}
-
-	_podoff(member) {
-		if (!member) {
-			return;
-		}
-		if (!this._checkMemberHasPermissions(member)) {
-			return;
-		}
-
-		if (this._voiceReceivers.get(member.voiceChannelID)) {
-			this._voiceReceivers.get(member.voiceChannelID).destroy();
-			this._voiceReceivers.delete(member.voiceChannelID);
-			this._voiceConnections.get(member.voiceChannelID).disconnect();
-			this._voiceConnections.delete(member.voiceChannelID);
-		}
-	}
-
-	_checkMemberHasPermissions(member) {
-		if (this._controllerUsers.has(member.user)) {
-			return true;
-		}
-	}
-
-	static _makePodcastsDirectory() {
-		let dir = path.join('.', 'podcasts');
-		Podbot._makeDirectory(dir);
-		return dir;
-	}
-
-	static _makeDirectory(dir) {
-		try {
-			fs.mkdirSync(dir);
-		} catch (err) {
-			// Don't care, presumably the folder exists already
-		}
-	}
+	return config;
 }
 
-process.on('unhandledRejection', (error) => {
-	console.error(`Uncaught Promise Error: \n${error.stack}`);
-});
+function makeRelativePathsAbsolute(config) {
+	config.podbot.podcastPath = path.join(__dirname, config.podbot.podcastPath);
+}
 
-process.on('uncaughtException', (err) => {
-	let errmsg = (err ? err.stack || err : '').toString().replace(new RegExp(`${__dirname}/`, 'g'), './');
-  	console.error(errmsg);
-});
+function run(config) {
+	const podbot = new Podbot(config.podbot);
 
-const podbot = new Podbot(TOKEN);
+	process.on('unhandledRejection', (err) => {
+		console.error(`Uncaught Promise Error: \n${err.stack}`);
+	});
+
+	process.on('uncaughtException', (err) => {
+		let errmsg = (err ? err.stack || err : '').toString().replace(new RegExp(`${__dirname}/`, 'g'), './');
+		console.error(errmsg);
+	});
+}
+
+async function init() {
+	let config;
+	try {
+		config = await fs.readJson(configPath);
+	} catch (err) {
+		// Don't care about err, it just means there isn't a valid config file available
+		config = await promptConfigCreation();
+	}
+	makeRelativePathsAbsolute(config);
+	run(config);
+}
+
+init();

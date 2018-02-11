@@ -1,7 +1,12 @@
+# IDE
 .idea
+
+# npm
 node_modules
-token
-token - podbot
-token - testbot
+
+# secrets
+config.json
+token*
+
+# output
 podcasts/*
-/controllers

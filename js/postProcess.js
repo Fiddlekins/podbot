@@ -31,7 +31,7 @@ async function promptUser() {
 		type: 'list',
 		name: 'podcast',
 		message: 'Please select podcast to process:',
-		choices: podcasts.map(formatChoice),
+		choices: podcasts.map(formatChoice).reverse(),
 		transformer: cleanPodcastChoice
 	});
 	const answers = await inquirer.prompt(questions);
