@@ -70,10 +70,10 @@ class Podbot {
 		if (message.content.startsWith(this._config.commandPrefix)) {
 			switch (message.content.slice(this._config.commandPrefix.length)) {
 				case 'podon':
-					this._podon(message).catch(log.error);
+					this._podon(message).catch(log.error.bind(log));
 					break;
 				case 'podoff':
-					this._podoff(message).catch(log.error);
+					this._podoff(message).catch(log.error.bind(log));
 					break;
 			}
 		}
