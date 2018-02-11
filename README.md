@@ -15,8 +15,8 @@ and start recording.~~
 Podframe is ded, you'll need to run your own podbot.
 
 ### The current commands are:
-- `/podon` - The bot starts recording
-- `/podoff` - The bot stops recording
+- `/podon` - The bot joins the voice channel the command user is in and starts recording
+- `/podoff` - The bot stops recording and leaves the voice channel 
   
 The bot will generate audio fragments saved to `podbot\podcasts\<channelId-timestamp>.opus_string`. 
 
