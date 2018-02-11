@@ -3,6 +3,7 @@
 const fs = require('fs-extra');
 const path = require('path');
 const Discord = require('discord.js');
+const log = require('./log.js');
 
 class Podbot {
 	constructor(config) {
@@ -21,15 +22,15 @@ class Podbot {
 		this._client.on('guildMemberSpeaking', this._onGuildMemberSpeaking.bind(this));
 
 		this._client.on('disconnect', (e) => {
-			console.log(`Disconnected from gateway with code ${e.code}`);
+			log.warn(`Disconnected from gateway with code ${e.code}`);
 		});
 
 		this._client.on('reconnecting', () => {
-			console.log(`Reconnecting`);
+			log.warn(`Reconnecting`);
 		});
 
-		this._client.on('error', console.error);
-		this._client.on('warn', console.warn);
+		this._client.on('error', log.error);
+		this._client.on('warn', log.warn);
 
 		this._init();
 	}
@@ -41,7 +42,7 @@ class Podbot {
 			try {
 				stream.destroy('Podbot destroyed');
 			} catch (err) {
-				console.error(err);
+				log.error(err);
 			}
 		});
 		this._voiceConnections.clear();
@@ -59,7 +60,7 @@ class Podbot {
 	}
 
 	_onReady() {
-		console.log(`Connected as ${this._client.user.username}#${this._client.user.discriminator} ${this._client.user.id}`);
+		log.log(`Connected as ${this._client.user.username}#${this._client.user.discriminator} ${this._client.user.id}`);
 		if (this._config.game.length) {
 			this._client.user.setGame(this._config.game);
 		}
@@ -69,7 +70,7 @@ class Podbot {
 		if (message.content.startsWith(this._config.commandPrefix)) {
 			switch (message.content.slice(this._config.commandPrefix.length)) {
 				case 'podon':
-					this._podon(message).catch(console.error);
+					this._podon(message).catch(log.error);
 					break;
 				case 'podoff':
 					this._podoff(message);
@@ -88,7 +89,7 @@ class Podbot {
 					this._writeStreams.delete(member.id);
 					writeStream.end(err => {
 						if (err) {
-							console.error(err);
+							log.error(err);
 						}
 					});
 				}

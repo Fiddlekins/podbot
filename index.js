@@ -3,6 +3,7 @@
 const fs = require('fs-extra');
 const path = require('path');
 const inquirer = require('inquirer');
+const log = require('./js/log.js');
 const { makeRelativePathsAbsolute } = require('./js/utils.js');
 const Podbot = require('./js/Podbot.js');
 
@@ -89,10 +90,10 @@ function run(config) {
 
 	const uncrash = () => {
 		if (timeout === null) {
-			console.log('Destroying podbot');
+			log.warn('Destroying podbot');
 			podbot.destroy().then(() => {
 				timeout = setTimeout(() => {
-					console.log('Recreating podbot');
+					log.warn('Recreating podbot');
 					timeout = null;
 					podbot = new Podbot(config.podbot);
 				}, config.timeout);
@@ -101,13 +102,12 @@ function run(config) {
 	};
 
 	process.on('unhandledRejection', (err) => {
-		console.error(`Uncaught Promise Error: \n${err.stack}`);
+		log.error(`Uncaught Promise Rejection: \n${err.stack || err}`);
 		uncrash();
 	});
 
 	process.on('uncaughtException', (err) => {
-		let errmsg = (err ? err.stack || err : '').toString().replace(new RegExp(`${__dirname}/`, 'g'), './');
-		console.error(errmsg);
+		log.error(`Uncaught Exception: \n${err.stack || err}`);
 		uncrash();
 	});
 }
@@ -121,6 +121,7 @@ async function init() {
 		config = await promptConfigCreation();
 	}
 	makeRelativePathsAbsolute(config);
+	log.sanitize = config.sanitizeLogs;
 	run(config);
 }
 

@@ -9,4 +9,4 @@ config.json
 token*
 
 # output
-podcasts/*
+podcasts
