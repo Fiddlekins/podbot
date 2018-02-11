@@ -1,5 +1,7 @@
 'use strict';
 
+const path = require('path');
+
 function extractUserId(name) {
 	return name.split('-')[0];
 }
@@ -18,9 +20,14 @@ function formatDate(date) {
 	return date.toLocaleString();
 }
 
+function makeRelativePathsAbsolute(config) {
+	config.podbot.podcastPath = path.join(__dirname, '..', config.podbot.podcastPath);
+}
+
 module.exports = {
 	extractUserId,
 	extractTimestamp,
 	convertDurationToSamples,
-	formatDate
+	formatDate,
+	makeRelativePathsAbsolute
 };

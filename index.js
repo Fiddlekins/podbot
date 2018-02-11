@@ -3,6 +3,7 @@
 const fs = require('fs-extra');
 const path = require('path');
 const inquirer = require('inquirer');
+const { makeRelativePathsAbsolute } = require('./js/utils.js');
 const Podbot = require('./js/Podbot.js');
 
 const configPath = path.join(__dirname, 'config.json');
@@ -80,10 +81,6 @@ async function promptConfigCreation() {
 	await fs.writeJson(configPath, config, { spaces: '\t' });
 
 	return config;
-}
-
-function makeRelativePathsAbsolute(config) {
-	config.podbot.podcastPath = path.join(__dirname, config.podbot.podcastPath);
 }
 
 function run(config) {
