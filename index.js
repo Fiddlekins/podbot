@@ -4,6 +4,7 @@ const fs = require('fs-extra');
 const path = require('path');
 const inquirer = require('inquirer');
 const log = require('./js/log.js');
+const outputFormats = require('./js/outputFormats.js');
 const { makeRelativePathsAbsolute } = require('./js/utils.js');
 const Podbot = require('./js/Podbot.js');
 
@@ -62,6 +63,13 @@ async function promptConfigCreation() {
 		message: 'Should logs have folder paths sanitized:',
 		default: false
 	});
+	questions.push({
+		type: 'list',
+		name: 'outputFormat',
+		message: 'Select format to output audio during post processing:',
+		choices: Object.values(outputFormats),
+		default: outputFormats.WAV
+	});
 	const answers = await inquirer.prompt(questions);
 
 	const config = {
@@ -74,6 +82,9 @@ async function promptConfigCreation() {
 			},
 			commandPrefix: answers['commandPrefix'].toString(),
 			game: answers['game'].toString()
+		},
+		postProcess: {
+			format: answers['outputFormat'].toString()
 		},
 		timeout: parseInt(answers['timeout'], 10),
 		sanitizeLogs: !!answers['sanitizeLogs']

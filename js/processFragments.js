@@ -4,11 +4,23 @@ const fs = require('fs-extra');
 const path = require('path');
 const child_process = require('child_process');
 const { extractUserId, extractTimestamp, convertDurationToSamples } = require('./utils.js');
+const outputFormats = require('./outputFormats.js');
 
 const RATE = 48000;
 const INPUT_EXTENSION = '.raw_pcm';
 
-async function reassemble(config) {
+function getOutputCommand(outputPath, outputFormat) {
+	switch (outputFormat) {
+		case outputFormats.PCM:
+			return `-f s16le -ar 48k -ac 2 ${outputPath}`;
+		case outputFormats.WAV:
+			return `${outputPath}.wav`;
+		default:
+			throw new Error(`Invalid output format specified: ${outputFormat}`);
+	}
+}
+
+async function reassemble(config, outputFormat) {
 	let outputPath = path.join(config.id);
 	let inputCommandArray = [];
 	let filterPadCommandArray = [];
@@ -64,9 +76,9 @@ async function reassemble(config) {
 		commands.push(command);
 		subConfig.fragments.push({ name: temporaryOutputPath });
 		await Promise.all(commands.map(command => doCommand(command)));
-		await reassemble(subConfig);
+		await reassemble(subConfig, outputFormat);
 	} else {
-		command = `ffmpeg -y ${inputCommand} -filter_complex "${filterCommand}" -map "[a]" -f s16le -ar 48k -ac 2 ${outputPath}`;
+		command = `ffmpeg -y ${inputCommand} -filter_complex "${filterCommand}" -map "[a]" ${getOutputCommand(outputPath, outputFormat)}`;
 		await doCommand(command);
 	}
 }
@@ -93,7 +105,7 @@ function doCommand(command) {
 	});
 }
 
-async function assembleUsers(inputDirectory) {
+async function assembleUsers(inputDirectory, outputFormat) {
 	const users = {};
 	const podcastTimestamp = extractTimestamp(inputDirectory.split(path.sep).pop());
 
@@ -145,7 +157,7 @@ async function assembleUsers(inputDirectory) {
 			fragment.totalSampleLength = samples;
 		}
 
-		await reassemble(user).catch(console.error);
+		await reassemble(user, outputFormat);
 	}
 }
 
