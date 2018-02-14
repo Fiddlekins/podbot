@@ -9,6 +9,7 @@ const processFragments = require('./processFragments.js').processFragments;
 const outputFormats = require('./outputFormats.js');
 
 const configPath = path.join(__dirname, '..', 'config.json');
+const ALL_PODCASTS = 'All available podcasts';
 
 function formatChoice(podcast) {
 	const timestamp = extractTimestamp(podcast);
@@ -61,15 +62,20 @@ async function promptUserForPodcastDirectory(config) {
 	const questions = [];
 	const podcastPath = config.podbot.podcastPath;
 	const podcasts = await getPodcastList(podcastPath);
+	const choices = podcasts.map(formatChoice);
+	choices.unshift(ALL_PODCASTS);
 	if (podcasts.length) {
 		questions.push({
 			type: 'list',
 			name: 'podcast',
 			message: 'Please select podcast to process:',
-			choices: podcasts.map(formatChoice),
+			choices: choices,
 			transformer: cleanPodcastChoice
 		});
 		const answers = await inquirer.prompt(questions);
+		if (answers['podcast'] === ALL_PODCASTS) {
+			return podcasts.map(podcast => path.join(podcastPath, podcast));
+		}
 		return path.join(podcastPath, cleanPodcastChoice(answers['podcast']));
 	} else {
 		questions.push({
@@ -97,10 +103,14 @@ async function promptUserForOutputFormat() {
 
 async function init() {
 	let [podcastDirectory, outputFormat] = process.argv.slice(2);
+	let podcastDirectories;
 	let config = null;
 	if (!podcastDirectory) {
 		config = config || await getConfig();
 		podcastDirectory = await promptUserForPodcastDirectory(config);
+		if (Array.isArray(podcastDirectory)) {
+			podcastDirectories = podcastDirectory;
+		}
 	}
 	if (!outputFormat) {
 		config = config || await getConfig();
@@ -109,7 +119,13 @@ async function init() {
 			outputFormat = await promptUserForOutputFormat();
 		}
 	}
-	await processDirectory(podcastDirectory, outputFormat);
+	if (podcastDirectories) {
+		for (const podcastDirectory of podcastDirectories) {
+			await processDirectory(podcastDirectory, outputFormat);
+		}
+	} else {
+		await processDirectory(podcastDirectory, outputFormat);
+	}
 }
 
 init().catch(console.error);
