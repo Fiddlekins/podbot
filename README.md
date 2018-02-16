@@ -23,8 +23,8 @@ Podframe is ded, you'll need to run your own podbot.
 
 ### Using Docker to run the bot:
 - Update config.ini with your values (or pass in the env with whatever container orchestrator you're using)
-- docker build -t podbot .
-- docker run -d --env-file config.ini --name podbot podbot
+- `docker build -t podbot .`
+- `docker run -d --env-file config.ini --name podbot podbot`
 - Your opus_string files are (by default) at /opt/podbot/podcasts, you will want to mount a volume there to get them out
 - As of right now this container doesn't support processing the audio files
 
