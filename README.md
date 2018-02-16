@@ -21,6 +21,13 @@ Podframe is ded, you'll need to run your own podbot.
     - you can use the `controllers.users` array to make specific users able to control the bot regardless of the server they're in
 - If `./config.json` already exists this initialisation will be skipped. Edit it manually if you want to tweak it afterwards
 
+### Using Docker to run the bot:
+- Update config.ini with your values (or pass in the env with whatever container orchestrator you're using)
+- docker build -t podbot .
+- docker run -d --env-file config.ini --name podbot podbot
+- Your opus_string files are (by default) at /opt/podbot/podcasts, you will want to mount a volume there to get them out
+- As of right now this container doesn't support processing the audio files
+
 ### Using the bot:
 - `/podon` - The bot joins the voice channel the command user is in and starts recording
 - `/podoff` - The bot stops recording and leaves the voice channel the command user is in
