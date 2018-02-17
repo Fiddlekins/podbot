@@ -127,27 +127,27 @@ function run(config) {
 async function init() {
 	let config;
 	try {
-    if(argv["env-config"]) {
-      config = {
-        "podbot": {
-          "token": process.env.POD_TOKEN,
-          "podcastPath": process.env.POD_PODCAST_PATH,
-          "controllers": {
-            "roles": process.env.POD_ROLES.split(),
-            "users": process.env.POD_USERS.split()
-          },
-          "commandPrefix": process.env.POD_PREFIX,
-          "game": process.env.POD_GAME
-        },
-        "postProcess": {
-          "format": process.env.POD_OUTPUT_FORMAT
-        },
-        "timeout": parseInt(process.env.POD_TIMEOUT),
-        "sanitizeLogs": process.env.POD_SANITIZE_LOGS === 'true'
-      }
-    } else {
-      config = await fs.readJson(configPath);
-    }
+		if (argv["env-config"]) {
+			config = {
+				podbot: {
+					token: process.env.POD_TOKEN,
+					podcastPath: process.env.POD_PODCAST_PATH,
+					controllers: {
+						roles: process.env.POD_ROLES.split(),
+						users: process.env.POD_USERS.split()
+					},
+					commandPrefix: process.env.POD_PREFIX,
+					game: process.env.POD_GAME
+				},
+				postProcess: {
+					format: process.env.POD_OUTPUT_FORMAT
+				},
+				timeout: parseInt(process.env.POD_TIMEOUT),
+				sanitizeLogs: process.env.POD_SANITIZE_LOGS === 'true'
+			}
+		} else {
+			config = await fs.readJson(configPath);
+		}
 	} catch (err) {
 		// Don't care about err, it just means there isn't a valid config file available
 		config = await promptConfigCreation();
