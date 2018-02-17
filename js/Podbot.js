@@ -62,7 +62,7 @@ class Podbot {
 	_onReady() {
 		log.log(`Connected as ${this._client.user.username}#${this._client.user.discriminator} ${this._client.user.id}`);
 		if (this._config.game.length) {
-			this._client.user.setGame(this._config.game);
+			this._client.user.setActivity(this._config.game);
 		}
 	}
 
