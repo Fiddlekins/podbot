@@ -133,8 +133,8 @@ async function init() {
 					token: process.env.POD_TOKEN,
 					podcastPath: process.env.POD_PODCAST_PATH,
 					controllers: {
-						roles: process.env.POD_ROLES.split(),
-						users: process.env.POD_USERS.split()
+						roles: process.env.POD_ROLES.split(','),
+						users: process.env.POD_USERS.split(',')
 					},
 					commandPrefix: process.env.POD_PREFIX,
 					game: process.env.POD_GAME
