@@ -130,7 +130,7 @@ async function init() {
 		if (argv["env-config"]) {
 			config = {
 				podbot: {
-					token: process.env.POD_TOKEN,
+					token: process.env.POD_TOKEN.trim(),
 					podcastPath: process.env.POD_PODCAST_PATH,
 					controllers: {
 						roles: process.env.POD_ROLES.split(','),
