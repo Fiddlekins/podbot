@@ -1,9 +1,20 @@
 'use strict';
 
+const { Readable } = require('stream');
 const fs = require('fs-extra');
 const path = require('path');
 const Discord = require('discord.js');
 const log = require('./log.js');
+
+// opus stream to send silence
+const SILENCE_FRAME = Buffer.from([0xF8, 0xFF, 0xFE]);
+
+class Silence extends Readable {
+  _read() {
+    this.push(SILENCE_FRAME);
+  }
+}
+
 
 class Podbot {
 	constructor(config) {
@@ -113,6 +124,8 @@ class Podbot {
 		const newPodcastPath = path.join(this._config.podcastPath, podcastName);
 		await fs.ensureDir(newPodcastPath);
 		const voiceConnection = await member.voiceChannel.join();
+		// play silence indefinitely, this should allow you to continue receiving audio
+		voiceConnection.playOpusStream(new Silence());
 		this._voiceConnections.set(member.voiceChannelID, voiceConnection);
 		const voiceReceiver = voiceConnection.createReceiver();
 		this._voiceReceivers.set(member.voiceChannelID, voiceReceiver);
