@@ -3,11 +3,15 @@
 const fs = require('fs-extra');
 const path = require('path');
 const inquirer = require('inquirer');
+const minimist = require('minimist');
 const log = require('./js/log.js');
 const outputFormats = require('./js/outputFormats.js');
 const { makeRelativePathsAbsolute } = require('./js/utils.js');
 const Podbot = require('./js/Podbot.js');
-const argv = require('yargs').argv;
+
+const args = minimist(process.argv.slice(2), {
+	boolean: ['env-config']
+});
 
 const configPath = path.join(__dirname, 'config.json');
 
@@ -44,12 +48,6 @@ async function promptConfigCreation() {
 	});
 	questions.push({
 		type: 'input',
-		name: 'game',
-		message: 'The game podbot should display as playing:',
-		default: ''
-	});
-	questions.push({
-		type: 'input',
 		name: 'timeout',
 		message: 'Specify how long podbot wait before attempting to restart after crashing in ms. (Be wary of rate limits):',
 		default: 10000,
@@ -71,6 +69,28 @@ async function promptConfigCreation() {
 		choices: Object.values(outputFormats),
 		default: outputFormats.WAV
 	});
+	questions.push({
+		type: 'list',
+		name: 'presenceType',
+		message: 'Set the way the activity message behaves:',
+		choices: [
+			{
+				name: "public (The voice channel names will be listed in the activity message, across all servers the bot is in)",
+				short: "public",
+				value: "public"
+			},
+			{
+				name: "private (A count of the number of actively recorded podcasts will be displayed)",
+				short: "private",
+				value: "private"
+			},
+			{
+				name: "custom (Pick a custom activity to display)",
+				short: "custom",
+				value: "custom"
+			}
+		]
+	});
 	const answers = await inquirer.prompt(questions);
 
 	const config = {
@@ -82,7 +102,9 @@ async function promptConfigCreation() {
 				users: answers['controllerUsers'].toString().split(',').filter(role => role.length > 0)
 			},
 			commandPrefix: answers['commandPrefix'].toString(),
-			game: answers['game'].toString()
+			presence: {
+				type: answers['presenceType'].toString()
+			}
 		},
 		postProcess: {
 			format: answers['outputFormat'].toString()
@@ -90,6 +112,34 @@ async function promptConfigCreation() {
 		timeout: parseInt(answers['timeout'], 10),
 		sanitizeLogs: !!answers['sanitizeLogs']
 	};
+
+	if (answers['presenceType'] === 'custom') {
+		const answers2 = await inquirer.prompt([
+			{
+				type: 'input',
+				name: 'presenceCustomNone',
+				message: 'Custom activity when podbot is not recording any podcasts:',
+				default: 'you'
+			},
+			{
+				type: 'input',
+				name: 'presenceCustomSingle',
+				message: 'Custom activity when podbot is recording one podcast:',
+				default: 'the neighbour'
+			},
+			{
+				type: 'input',
+				name: 'presenceCustomMultiple',
+				message: 'Custom activity when podbot is recording multiple podcasts:',
+				default: 'many things'
+			}
+		]);
+		config.podbot.presence.activity = {
+			none: answers2['presenceCustomNone'],
+			single: answers2['presenceCustomSingle'],
+			multiple: answers2['presenceCustomMultiple']
+		}
+	}
 
 	await fs.writeJson(configPath, config, { spaces: '\t' });
 
@@ -127,7 +177,7 @@ function run(config) {
 async function init() {
 	let config;
 	try {
-		if (argv["env-config"]) {
+		if (args["env-config"]) {
 			config = {
 				podbot: {
 					token: process.env.POD_TOKEN.trim(),
@@ -137,7 +187,14 @@ async function init() {
 						users: process.env.POD_USERS.split(',')
 					},
 					commandPrefix: process.env.POD_PREFIX,
-					game: process.env.POD_GAME
+					presence: {
+						type: process.env.POD_PRESENCE_TYPE,
+						activity: {
+							none: process.env.POD_PRESENCE_ACTIVITY_NONE,
+							single: process.env.POD_PRESENCE_ACTIVITY_SINGLE,
+							multiple: process.env.POD_PRESENCE_ACTIVITY_MULTIPLE
+						}
+					}
 				},
 				postProcess: {
 					format: process.env.POD_OUTPUT_FORMAT

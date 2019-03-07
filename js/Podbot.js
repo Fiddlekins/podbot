@@ -49,10 +49,7 @@ class Podbot {
 
 	_onReady() {
 		log.log(`Connected as ${this._client.user.username}#${this._client.user.discriminator} ${this._client.user.id}`);
-		if (this._config.game.length) {
-			// TODO this._client.user.setPresence
-			//this._client.user.setGame(this._config.game);
-		}
+		this._updatePresence();
 	}
 
 	_onMessage(message) {
@@ -98,11 +95,13 @@ class Podbot {
 			fs.ensureDir(outputPath)
 		]);
 		const podcast = {
+			name: member.voice.channel.name,
 			outputPath,
 			voiceConnection,
 			members: new Map()
 		};
 		this._podcasts.set(channelID, podcast);
+		this._updatePresence();
 		member.voice.channel.members.forEach((member) => {
 			this._startRecording(member, podcast);
 		});
@@ -127,6 +126,7 @@ class Podbot {
 			this._stopRecording(member, podcast);
 		});
 		this._podcasts.delete(channelID);
+		this._updatePresence();
 	}
 
 	_startRecording(member, podcast) {
@@ -171,6 +171,61 @@ class Podbot {
 			}
 		}
 		return false;
+	}
+
+	_updatePresence() {
+		const presence = {
+			activity: {}
+		};
+		switch (this._podcasts.size) {
+			case 0:
+				presence.activity.type = 'WATCHING';
+				switch (this._config.presence.type) {
+					case 'public':
+						presence.activity.name = 'you';
+						break;
+					case 'private':
+						presence.activity.name = 'you';
+						break;
+					case 'custom':
+						presence.activity.name = this._config.presence.activity.none;
+						break;
+				}
+				break;
+			case 1:
+				presence.activity.type = 'LISTENING';
+				switch (this._config.presence.type) {
+					case 'public':
+						presence.activity.name = `"${this._podcasts.values().next().value.name}"`;
+						break;
+					case 'private':
+						presence.activity.name = `1 podcast`;
+						break;
+					case 'custom':
+						presence.activity.name = this._config.presence.activity.single;
+						break;
+				}
+				break;
+			default:
+				presence.activity.type = 'LISTENING';
+				switch (this._config.presence.type) {
+					case 'public':
+						const podcastNames = [];
+						for (const podcast of this._podcasts.values()) {
+							podcastNames.push(`"${podcast.name}"`);
+						}
+						presence.activity.name = podcastNames.join(', ');
+						break;
+					case 'private':
+						presence.activity.name = `${this._podcasts.size} podcasts`;
+						break;
+					case 'custom':
+						presence.activity.name = this._config.presence.activity.multiple;
+						break;
+				}
+
+		}
+		this._client.user.setPresence(presence);
 	}
 }
 
