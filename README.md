@@ -1,6 +1,16 @@
 # podbot
 A Discord bot designed to record voice chat audio, aimed at recording a specific podcast.
 
+## A quick note
+This bot has had plenty of problems actually doing what it's meant to for about a year or so now.
+Sometimes it records, sometimes it doesn't...
+
+I've updated it to use all the latest in cunning fixes and workarounds but even now my testing has found it unreliable.
+My leading theory is that the boy backend needs to be close geographically to the server location.
+
+I'm too short on time right now to look into this further alas.
+Ultimately the current official stance is that voice recording for bots is not supported at this point in time anyway.
+
 Click [here](https://discordapp.com/oauth2/authorize?client_id=270724051234717698&scope=bot&permissions=133237760) to add my instance of it.
 
 It's worth noting that you'll need to host the bot yourself if you want access to the recording it makes - if you just use my instance you rely on me giving you the audio it generates.
@@ -13,6 +23,9 @@ and start recording.~~
 ~~(This is made by some chap by the name of _leanon over on this [reddit thread](https://www.reddit.com/r/discordapp/comments/6733u8/i_made_a_discord_bot_which_lets_you_record_a/?st=j1yqjsv8&sh=d25c1299))~~
 
 Podframe is ded, you'll need to run your own podbot.
+
+**This bot has been tested against node.js 10.15.2**  
+Make sure to use this version if you're having trouble getting it to work.
 
 - Clone this repo and do the thing with the discord and the applications.
 - Run `node index.js` or `npm run podbot` and go through the prompts to initialize configuration
