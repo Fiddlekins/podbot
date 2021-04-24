@@ -181,14 +181,14 @@ async function init() {
 			config = {
 				podbot: {
 					token: process.env.POD_TOKEN.trim(),
-					podcastPath: process.env.POD_PODCAST_PATH,
+					podcastPath: process.env.POD_PODCAST_PATH || `.${path.sep}podcasts`,
 					controllers: {
-						roles: process.env.POD_ROLES.split(','),
-						users: process.env.POD_USERS.split(',')
+						roles: (process.env.POD_ROLES || 'podhandler').split(','),
+						users: (process.env.POD_USERS || '').split(',')
 					},
-					commandPrefix: process.env.POD_PREFIX,
+					commandPrefix: process.env.POD_PREFIX || '/',
 					presence: {
-						type: process.env.POD_PRESENCE_TYPE,
+						type: process.env.POD_PRESENCE_TYPE || 'public',
 						activity: {
 							none: process.env.POD_PRESENCE_ACTIVITY_NONE,
 							single: process.env.POD_PRESENCE_ACTIVITY_SINGLE,
@@ -197,9 +197,9 @@ async function init() {
 					}
 				},
 				postProcess: {
-					format: process.env.POD_OUTPUT_FORMAT
+					format: process.env.POD_OUTPUT_FORMAT || outputFormats.WAV
 				},
-				timeout: parseInt(process.env.POD_TIMEOUT),
+				timeout: parseInt(process.env.POD_TIMEOUT) || 1000,
 				sanitizeLogs: process.env.POD_SANITIZE_LOGS === 'true'
 			}
 		} else {
