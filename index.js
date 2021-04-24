@@ -199,7 +199,7 @@ async function init() {
 				postProcess: {
 					format: process.env.POD_OUTPUT_FORMAT || outputFormats.WAV
 				},
-				timeout: parseInt(process.env.POD_TIMEOUT) || 1000,
+				timeout: parseInt(process.env.POD_TIMEOUT) || 10000,
 				sanitizeLogs: process.env.POD_SANITIZE_LOGS === 'true'
 			}
 		} else {
