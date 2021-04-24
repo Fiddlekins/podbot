@@ -5,5 +5,7 @@ services:
   web:
     build: .
     command: node index.js --env-config
+    ports:
+      - "8080:8080"
     volumes:
       - .:/opt/podbot
