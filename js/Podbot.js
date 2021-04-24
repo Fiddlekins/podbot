@@ -165,8 +165,14 @@ class Podbot {
 		if (this._config.controllers.users.includes(member.id)) {
 			return true;
 		}
+
+		if (member.hasPermission('ADMINISTRATOR')) {
+			return true;
+		}
+
 		for (const roleName of this._config.controllers.roles) {
-			if (member.roles.exists('name', roleName)) {
+			let roles = member.roles.find(r => {r.name === roleName});
+			if (roles) {
 				return true;
 			}
 		}
