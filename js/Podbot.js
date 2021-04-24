@@ -171,7 +171,7 @@ class Podbot {
 		}
 
 		for (const roleName of this._config.controllers.roles) {
-			let roles = member.roles.find(r => {r.name === roleName});
+			let roles = member.roles.find(r => {return r.name === roleName});
 			if (roles) {
 				return true;
 			}
