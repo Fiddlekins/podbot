@@ -1,0 +1,9 @@
+# docker-compose up
+#
+version: '2'
+services:
+  web:
+    build: .
+    command: node index.js --env-config
+    volumes:
+      - .:/opt/podbot
