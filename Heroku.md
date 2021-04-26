@@ -16,3 +16,9 @@ heroku ps:scale web=0 -a bot-recorder
 ```
 heroku run bash -a bot-recorder
 ```
+## Plugins
+```
+heroku plugins:install heroku-builds
+heroku builds -a bot-recorder
+heroku builds:cancel -a YOUR_HEROKU_APP_NAME
+```

@@ -1,5 +1,5 @@
 FROM node:12.2.0-alpine
-RUN mkdir /opt/podbot && mkdir /opt/podbot/js && chown -R node:node /opt/podbot && apk update && apk add gcc python make musl-dev g++ ffmpeg git autoconf automake libtool
+RUN mkdir /opt/podbot && mkdir /opt/podbot/js && chown -R node:node /opt/podbot && apk update && apk add curl gcc python make musl-dev g++ ffmpeg git autoconf automake libtool
 
 # add config required for HEROKU_EXEC
 # ENV HEROKU_EXEC_DEBUG=1
