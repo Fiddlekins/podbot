@@ -55,6 +55,9 @@ class Podbot {
   _onMessage(message) {
     if (message.content.startsWith(this._config.commandPrefix)) {
       switch (message.content.slice(this._config.commandPrefix.length)) {
+        case 'help':
+          this._help(message).catch(log.error.bind(log));
+          break;
         case 'podon':
           this._podon(message).catch(log.error.bind(log));
           break;
@@ -86,6 +89,10 @@ class Podbot {
     }
   }
 
+  async _help(message) {
+    message.reply("/podon /stop /state /play /podoff")
+  }
+
   async _podon(message) {
     const member = message.member;
     if (!member) {
@@ -105,6 +112,7 @@ class Podbot {
       fs.ensureDir(outputPath)
     ])
     message.reply(`Recording ${channelID} ...`)
+    voiceConnection.play("./beep.mp3")
     const podcast = {
       name: member.voice.channel.name,
       outputPath,
@@ -181,6 +189,7 @@ class Podbot {
     podcast.members.forEach((member) => {
       this._stopRecording(member, podcast);
     });
+    message.reply(`Recording stop ...`)
     this._updatePresence();
   }
 
