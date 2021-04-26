@@ -58,8 +58,17 @@ class Podbot {
         case 'podon':
           this._podon(message).catch(log.error.bind(log));
           break;
+        case 'stop':
+          this._stop(message).catch(log.error.bind(log));
+          break;
         case 'podoff':
           this._podoff(message).catch(log.error.bind(log));
+          break;
+        case 'state':
+          this._state(message).catch(log.error.bind(log));
+          break;
+        case 'play':
+          this._play(message).catch(log.error.bind(log));
           break;
       }
     }
@@ -71,7 +80,7 @@ class Podbot {
       this._stopRecording(oldState.member, this._podcasts.get(oldState.channelID));
     }
     // start recording a user that joins an active voice channel
-    const podcast = this._podcasts.get(channelID);
+    const podcast = this._podcasts.get(newState.channelID);
     if (this._podcasts.has(newState.channelID) && !podcast.members.get(newState.member_id)) {
       this._startRecording(newState.member, this._podcasts.get(newState.channelID));
     }
@@ -94,7 +103,8 @@ class Podbot {
     const [voiceConnection] = await Promise.all([
       member.voice.channel.join(),
       fs.ensureDir(outputPath)
-    ]);
+    ])
+    message.reply(`Recording ${channelID} ...`)
     const podcast = {
       name: member.voice.channel.name,
       outputPath,
@@ -106,7 +116,74 @@ class Podbot {
     member.voice.channel.members.forEach((member) => {
       this._startRecording(member, podcast);
     });
+
   }
+
+  async _play(message) {
+    const member = message.member;
+    if (!member) {
+      return;
+    }
+    if (!this._hasPermission(member)) {
+      return;
+    }
+    if (!member.voice.channel) {
+      await message.reply(`you're not in a voice channel`);
+      return;
+    }
+    const { channelID } = member.voice;
+    const podcast = this._podcasts.get(channelID);
+    await message.reply(`playing ...`);
+    podcast.members.forEach((member) => {
+      podcast.voiceConnection.play(member.writeStream.path);
+    });
+  }
+
+  async _state(message) {
+    const member = message.member;
+    if (!member) {
+      return;
+    }
+    if (!this._hasPermission(member)) {
+      return;
+    }
+    if (!member.voice.channel) {
+      await message.reply(`you're not in a voice channel`);
+      return;
+    }
+    const { channelID } = member.voice;
+    const podcast = this._podcasts.get(channelID);
+    const stream = podcast.members.get(member.id).writeStream
+    message.channel.send(
+            [
+                stream.path,
+                `Active : ${!stream.closed} | Writable : ${stream.writable}`,
+                `Bytes written : ${stream.bytesWritten.toLocaleString()}`,
+                `--`
+            ].join("\n")
+    )
+  }
+
+  async _stop(message) {
+    const member = message.member;
+    if (!member) {
+      return;
+    }
+    if (!this._hasPermission(member)) {
+      return;
+    }
+    if (!member.voice.channel) {
+      await message.reply(`you're not in a voice channel`);
+      return;
+    }
+    const { channelID } = member.voice;
+    const podcast = this._podcasts.get(channelID);
+    podcast.members.forEach((member) => {
+      this._stopRecording(member, podcast);
+    });
+    this._updatePresence();
+  }
+
 
   async _podoff(message) {
     const member = message.member;
