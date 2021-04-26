@@ -71,7 +71,8 @@ class Podbot {
       this._stopRecording(oldState.member, this._podcasts.get(oldState.channelID));
     }
     // start recording a user that joins an active voice channel
-    if (this._podcasts.has(newState.channelID)) {
+    const podcast = this._podcasts.get(channelID);
+    if (this._podcasts.has(newState.channelID) && !podcast.members.get(newState.member_id)) {
       this._startRecording(newState.member, this._podcasts.get(newState.channelID));
     }
   }
