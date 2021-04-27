@@ -15,6 +15,8 @@ function getOutputCommand(outputPath, outputFormat) {
 			return `-f s16le -ar 48k -ac 2 ${outputPath}`;
 		case outputFormats.WAV:
 			return `${outputPath}.wav`;
+		case outputFormats.MP3:
+			return `${outputPath}.mp3`;
 		default:
 			throw new Error(`Invalid output format specified: ${outputFormat}`);
 	}
@@ -84,7 +86,6 @@ async function reassemble(config, outputFormat) {
 }
 
 function doCommand(command) {
-	console.log(command);
 	return new Promise((resolve, reject) => {
 		let child = child_process.spawn(command, { shell: true });
 		let string = '';

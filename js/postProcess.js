@@ -4,7 +4,6 @@ const fs = require('fs-extra');
 const path = require('path');
 const inquirer = require('inquirer');
 const { extractTimestamp, formatDate, makeRelativePathsAbsolute } = require('./utils.js');
-const decodeOpus = require('./decodeOpus.js').decodeOpus;
 const processFragments = require('./processFragments.js').processFragments;
 const outputFormats = require('./outputFormats.js');
 
@@ -21,10 +20,6 @@ function cleanPodcastChoice(choice) {
 }
 
 async function processDirectory(directory, outputFormat) {
-  console.log(`Started processing ${directory}`);
-  console.log(`Started decoding opus strings`);
-  await decodeOpus(directory);
-  console.log(`Finished decoding opus strings`);
   console.log(`Started reassembling raw PCM fragments`);
   await processFragments(directory, outputFormat);
   console.log(`Finished reassembling raw PCM fragments`);
