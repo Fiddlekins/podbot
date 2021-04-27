@@ -104,10 +104,10 @@ async function promptConfigCreation() {
       commandPrefix: answers['commandPrefix'].toString(),
       presence: {
         type: answers['presenceType'].toString()
+      },
+      postProcess: {
+        format: answers['outputFormat'].toString()
       }
-    },
-    postProcess: {
-      format: answers['outputFormat'].toString()
     },
     timeout: parseInt(answers['timeout'], 10),
     sanitizeLogs: !!answers['sanitizeLogs']
@@ -194,10 +194,10 @@ async function init() {
               single: process.env.POD_PRESENCE_ACTIVITY_SINGLE,
               multiple: process.env.POD_PRESENCE_ACTIVITY_MULTIPLE
             }
+          },
+          postProcess: {
+            format: process.env.POD_OUTPUT_FORMAT || outputFormats.WAV
           }
-        },
-        postProcess: {
-          format: process.env.POD_OUTPUT_FORMAT || outputFormats.WAV
         },
         timeout: parseInt(process.env.POD_TIMEOUT) || 10000,
         sanitizeLogs: process.env.POD_SANITIZE_LOGS === 'true'

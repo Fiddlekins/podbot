@@ -4,12 +4,14 @@ const fs = require('fs-extra');
 const path = require('path');
 const Discord = require('discord.js');
 const log = require('./log.js');
+const postProcess = require('./postProcess.js').processDirectory;
 
 class Podbot {
   constructor(config) {
     this._config = config;
     this._client = new Discord.Client();
     this._podcasts = new Map();
+    this._audioFiles = [];
 
     this._client.on('ready', this._onReady.bind(this));
     this._client.on('message', this._onMessage.bind(this));
@@ -93,6 +95,10 @@ class Podbot {
     message.reply("/podon /stop /state /play /podoff")
   }
 
+  async _postProcess(dir, format) {
+    this._audioFiles = postProcess(dir, format);
+  }
+
   async _podon(message) {
     const member = message.member;
     if (!member) {
@@ -143,7 +149,10 @@ class Podbot {
     const podcast = this._podcasts.get(channelID);
     await message.reply(`playing ...`);
     podcast.members.forEach((member) => {
-      podcast.voiceConnection.play(member.writeStream.path);
+      this._stopRecording(member, podcast);
+      var file = member.writeStream.path
+      console.log('playing', file)
+      podcast.voiceConnection.play(fs.createReadStream(file), {type: 'pcm'});
     });
   }
 
@@ -214,6 +223,9 @@ class Podbot {
     });
     this._podcasts.delete(channelID);
     this._updatePresence();
+    // postProcess
+    this._audioFiles = postProcess(podcast.outputPath, this._config.postProcess.format);
+    console.log(this_audioFiles);
   }
 
   _startRecording(member, podcast) {

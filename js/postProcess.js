@@ -21,9 +21,10 @@ function cleanPodcastChoice(choice) {
 
 async function processDirectory(directory, outputFormat) {
   console.log(`Started reassembling raw PCM fragments`);
-  await processFragments(directory, outputFormat);
+  const audios = await processFragments(directory, outputFormat);
   console.log(`Finished reassembling raw PCM fragments`);
   console.log(`Finished processing ${directory}`);
+  return audios;
 }
 
 async function getPodcastList(podcastPath) {
@@ -124,3 +125,7 @@ async function init() {
 }
 
 init().catch(console.error);
+
+module.exports = {
+  processDirectory: processDirectory
+};
