@@ -66,6 +66,9 @@ class Podbot {
         case 'stop':
           this._stop(message).catch(log.error.bind(log));
           break;
+        case 'record':
+          this._record(message).catch(log.error.bind(log));
+          break;
         case 'podoff':
           this._podoff(message).catch(log.error.bind(log));
           break;
@@ -92,11 +95,32 @@ class Podbot {
   }
 
   async _help(message) {
-    message.reply("/podon /stop /state /play /podoff")
+    message.reply("/podon: start recording\n/stop: stop recording\n/record: record again\n/state: recording state\n/play: play recordings\n/podoff: leave");
   }
 
-  async _postProcess(dir, format) {
-    this._audioFiles = postProcess(dir, format);
+  async _record(message) {
+    const member = message.member;
+    if (!member) {
+      return;
+    }
+    if (!this._hasPermission(member)) {
+      return;
+    }
+    if (!member.voice.channel) {
+      await message.reply(`you're not in a voice channel`);
+      return;
+    }
+    const { channelID } = member.voice;
+    const podcast = this._podcasts.get(channelID);
+    if (!podcast) {
+      await message.reply(`you're not in a voice channel`);
+      return;
+    }
+    await message.reply(`playing ...`);
+    this._updatePresence();
+    member.voice.channel.members.forEach((member) => {
+      this._startRecording(member, podcast);
+    });
   }
 
   async _podon(message) {
@@ -145,14 +169,16 @@ class Podbot {
       await message.reply(`you're not in a voice channel`);
       return;
     }
+    if (this._audioFiles.size == 0) {
+      await message.reply(`No recordings to play.`);
+      return;
+    }
+
     const { channelID } = member.voice;
     const podcast = this._podcasts.get(channelID);
     await message.reply(`playing ...`);
-    podcast.members.forEach((member) => {
-      this._stopRecording(member, podcast);
-      var file = member.writeStream.path
-      console.log('playing', file)
-      podcast.voiceConnection.play(fs.createReadStream(file), {type: 'pcm'});
+    this._audioFiles.forEach((file) => {
+      podcast.voiceConnection.play(file);
     });
   }
 
@@ -199,6 +225,8 @@ class Podbot {
       this._stopRecording(member, podcast);
     });
     message.reply(`Recording stop ...`)
+    // postProcess
+    this._audioFiles = await postProcess(podcast.outputPath, this._config.postProcess.format);
     this._updatePresence();
   }
 
@@ -224,8 +252,7 @@ class Podbot {
     this._podcasts.delete(channelID);
     this._updatePresence();
     // postProcess
-    this._audioFiles = postProcess(podcast.outputPath, this._config.postProcess.format);
-    console.log(this_audioFiles);
+    this._audioFiles = await postProcess(podcast.outputPath, this._config.postProcess.format);
   }
 
   _startRecording(member, podcast) {
